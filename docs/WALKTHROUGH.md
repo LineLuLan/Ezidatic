@@ -1,0 +1,381 @@
+# Ezidatic — Walkthrough (Setup, Run, Test)
+
+The hands-on runbook. Read this once when you first clone the repo,
+then keep it open whenever you spin up the dev environment.
+
+> **This file must reflect the current state of the project.** When a
+> new dependency, env var, command, or test step lands, update this
+> file in the same commit. See `RULES.md` §4 for the rule.
+
+---
+
+## 0. Prerequisites
+
+Install once on the machine:
+
+| Tool | Version | Why |
+|------|---------|-----|
+| Python | 3.11 or 3.13 | Backend runtime |
+| Node.js | ≥ 20 | Frontend runtime |
+| pnpm | ≥ 9 | Frontend package manager |
+| Docker Desktop | latest | Postgres + Redis + Chroma for dev |
+| Git | latest | Version control |
+
+Optional but recommended:
+
+- **Windows**: use **Git Bash** for the commands below; PowerShell variants
+  noted where they diverge.
+- **VS Code** with the Python + ESLint + Prettier extensions.
+
+Quick check:
+
+```bash
+python --version    # 3.11+
+node --version      # v20+
+pnpm --version      # 9+
+docker --version
+```
+
+---
+
+## 1. Clone and orient
+
+```bash
+git clone https://github.com/<your-username>/Ezidatic.git
+cd Ezidatic
+git fetch --all
+git branch -a
+```
+
+You should see `main`, `develop`, `backend`, `frontend` plus the matching
+`origin/*` refs. Branch model is `main ← develop ← backend / frontend`
+— see `RULES.md` §3 for the workflow.
+
+Read these in order:
+
+1. `CLAUDE.md` (root) — index of what to read.
+2. `docs/HANDOFF.md` — what the previous session left behind.
+3. `docs/TRACKING.md` — what's in flight.
+
+---
+
+## 2. Backend: first-time setup
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+Activate the venv:
+
+| Shell | Command |
+|-------|---------|
+| Git Bash (Windows) | `source .venv/Scripts/activate` |
+| PowerShell (Windows) | `.\.venv\Scripts\Activate.ps1` |
+| macOS / Linux | `source .venv/bin/activate` |
+
+Install runtime + dev dependencies:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements-dev.txt   # includes -r requirements.txt
+```
+
+Copy the env template:
+
+```bash
+cp .env.example .env
+```
+
+Edit `backend/.env` if you want non-defaults. The committed defaults work
+locally:
+
+- `DATABASE_URL=postgresql+asyncpg://ezidatic:ezidatic@localhost:5432/ezidatic`
+  — pointed at the `docker compose` Postgres.
+- `STORAGE_BACKEND=local`, `LOCAL_STORAGE_DIR=./data/uploads`,
+  `MAX_FILE_SIZE_MB=50`.
+- LLM provider keys (`GROQ_API_KEY`, …) are blank — fine until Sprint 4.
+
+> **Skip this step if you only want to run pytest.** The test suite uses
+> in-memory SQLite (see §5), so `.env` isn't required for tests.
+
+---
+
+## 3. Frontend: first-time setup
+
+```bash
+cd ../frontend
+pnpm install
+cp .env.local.example .env.local
+```
+
+`.env.local` only needs `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+
+---
+
+## 4. Run the dev environment
+
+You usually want three terminals: Docker, backend, frontend.
+
+### 4.1 Start the dev databases
+
+From the repo root:
+
+```bash
+docker compose up -d
+```
+
+This starts:
+
+- Postgres 15 on `localhost:5432` (db `ezidatic`, user `ezidatic`, pw `ezidatic`).
+- Redis 7 on `localhost:6379`.
+- Chroma latest on `localhost:8001`.
+
+Health check:
+
+```bash
+docker compose ps
+docker compose logs -f postgres   # ctrl+c to stop tailing
+```
+
+### 4.2 Apply migrations
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+You should see `0001_init` applied. To reset the DB:
+
+```bash
+docker compose down -v   # nukes the postgres volume
+docker compose up -d postgres
+alembic upgrade head
+```
+
+### 4.3 Run the backend
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+Open:
+
+- `http://localhost:8000/health` → `{"status":"ok",…}`
+- `http://localhost:8000/docs` → interactive OpenAPI for every route.
+
+### 4.4 Run the frontend
+
+In another terminal:
+
+```bash
+cd frontend
+pnpm dev
+```
+
+Open `http://localhost:3000`. The dashboard pages are still stubs at the
+moment — Sprint 1 FE wires them up against the backend.
+
+---
+
+## 5. Test the backend
+
+The test suite is **independent of Docker / Postgres**. It uses
+`aiosqlite` in-memory plus `StaticPool` so every developer can run it
+the moment `pip install -r requirements-dev.txt` finishes.
+
+```bash
+cd backend
+# venv must be active
+pytest
+```
+
+Targeted runs:
+
+```bash
+pytest tests/test_auth.py -v
+pytest tests/test_datasets.py::test_upload_csv_returns_ready_with_profile -v
+pytest -k "register or login" -v
+```
+
+Coverage:
+
+```bash
+pytest --cov=app --cov-report=term-missing
+```
+
+### What the suite covers as of Sprint 1
+
+| File | Tests | What it verifies |
+|------|-------|------------------|
+| `tests/test_health.py` | 4 | `/health` + 3 registry-population assertions |
+| `tests/test_auth.py` | 5 | Register, dup-email, login, wrong password, unknown email |
+| `tests/test_datasets.py` | 6 | Upload, format reject, auth required, list, detail, x-workspace 404 |
+| `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
+
+> Heads-up: a few of the registry tests need optional deps installed
+> (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
+> install only a subset for a quick auth test, expect those to fail
+> until you `pip install` the rest.
+
+---
+
+## 6. Test the frontend
+
+For Sprint 1 the contract is simply "must build and typecheck":
+
+```bash
+cd frontend
+pnpm typecheck   # tsc --noEmit
+pnpm build       # next build
+pnpm lint
+```
+
+Vitest comes online in Sprint 2 (`docs/ROADMAP_FRONTEND.md`). No frontend
+unit tests are required yet.
+
+---
+
+## 7. End-to-end smoke (Sprint 1 BE)
+
+With `docker compose up -d` + `uvicorn` running, exercise the full
+auth → upload → list → detail flow.
+
+### 7.1 Register and grab a token (Git Bash / Linux / macOS)
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice@example.com","password":"supersecret"}' \
+  | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
+echo "$TOKEN"
+```
+
+PowerShell:
+
+```powershell
+$body = '{"email":"alice@example.com","password":"supersecret"}'
+$resp = Invoke-RestMethod -Method POST -Uri http://localhost:8000/api/v1/auth/register `
+    -ContentType 'application/json' -Body $body
+$TOKEN = $resp.access_token
+$TOKEN
+```
+
+### 7.2 Upload a CSV
+
+Create a sample first:
+
+```bash
+cat > sample.csv <<'CSV'
+name,age,city
+Alice,30,Hanoi
+Bob,25,Saigon
+Carol,,Hanoi
+Dave,40,Saigon
+CSV
+```
+
+Upload:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/datasets \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample.csv"
+```
+
+PowerShell:
+
+```powershell
+curl.exe -s -X POST http://localhost:8000/api/v1/datasets `
+  -H "Authorization: Bearer $TOKEN" `
+  -F "file=@sample.csv"
+```
+
+Response should include `"status":"ready"`, `"row_count":4`, `"column_count":3`.
+
+### 7.3 List + detail
+
+```bash
+curl -s http://localhost:8000/api/v1/datasets \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+
+DATASET_ID=...   # paste from list response
+
+curl -s "http://localhost:8000/api/v1/datasets/$DATASET_ID" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+The detail response carries the full per-column profile.
+
+### 7.4 Same flow via Swagger UI
+
+Open `http://localhost:8000/docs`, click **Authorize**, paste the JWT
+from §7.1, then exercise the routes from the UI. Easier than curl for
+multipart uploads.
+
+---
+
+## 8. Common errors and fixes
+
+| Symptom | Cause | Fix |
+|--------|------|-----|
+| `ModuleNotFoundError: asyncpg` when running pytest | `app.core.database` was eager — fixed in `feat(auth)` commit (`ba23131`) | Pull latest `backend` |
+| `module 'bcrypt' has no attribute '__about__'` | passlib 1.7.x vs bcrypt 4.x+ | Already replaced with `bcrypt` direct in `app.core.security` |
+| `Form data requires "python-multipart"` | Missing dep | `pip install python-multipart` (already in `requirements.txt`) |
+| `NameError: Fields must not use names with leading underscores` | FastAPI body field starts with `_` | Rename `_file` → `file` in the route handler |
+| Postgres connection refused | Docker not up | `docker compose up -d postgres` |
+| `alembic: command not found` | venv not active | Activate the venv (see §2) |
+| `pnpm: command not found` | pnpm not installed | `npm i -g pnpm` |
+| 401 on every dataset call | Missing/expired bearer token | Re-run §7.1 to mint a new token (`ACCESS_TOKEN_EXPIRE_MINUTES` defaults to 1440) |
+| Charts in tests fail due to missing polars | Optional deps not installed | `pip install polars lightgbm groq` |
+
+---
+
+## 9. Cheatsheet
+
+```bash
+# Backend daily
+cd backend && source .venv/Scripts/activate
+uvicorn app.main:app --reload          # dev server
+pytest -q                              # all tests
+ruff check .                           # lint
+black .                                # format
+
+# Backend DB
+alembic upgrade head                   # apply migrations
+alembic revision -m "describe change"  # new migration (manual edits expected)
+alembic downgrade -1                   # rollback last
+
+# Frontend daily
+cd frontend
+pnpm dev                               # dev server
+pnpm build                             # production build
+pnpm typecheck                         # tsc --noEmit
+pnpm format                            # prettier --write
+
+# Docker
+docker compose up -d                   # start postgres + redis + chroma
+docker compose down                    # stop, keep volumes
+docker compose down -v                 # stop + drop data
+
+# Git workflow (per RULES.md §3)
+git checkout backend && git pull
+# ... implement feature, run pytest ...
+git add -A && git commit -m "feat(scope): ..."
+git push origin backend
+```
+
+---
+
+## 10. When to update this file
+
+Update `docs/WALKTHROUGH.md` whenever any of the following change:
+
+- A new runtime / dev dependency lands.
+- A new env var is required by code.
+- A new command is needed to run, build, migrate, or test.
+- A new common error becomes worth documenting (so the next dev doesn't
+  rediscover it).
+
+Bundle the doc update with the code change (one commit, one slice).

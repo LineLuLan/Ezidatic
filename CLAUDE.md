@@ -12,6 +12,7 @@ Read the **always-read** list before doing anything else.
 
 ## Read when relevant
 
+- `docs/WALKTHROUGH.md` — hands-on runbook (setup, run, test, smoke). **Read this first** when running anything for the first time, or when a command is unfamiliar.
 - `ezidatic-blueprint.md` — original architecture spec (immutable source of truth).
 - `docs/ROADMAP_BACKEND.md` / `docs/ROADMAP_FRONTEND.md` — sprint deliverables per side.
 - `docs/modules/M{n}_*.md` — detailed plan for the module currently in scope.

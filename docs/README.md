@@ -7,6 +7,7 @@ points back to this folder.
 
 | File | Purpose |
 |------|---------|
+| [`WALKTHROUGH.md`](./WALKTHROUGH.md) | Hands-on runbook: prerequisites, install, run, test, end-to-end smoke, common errors. Read first when running anything. |
 | [`RULES.md`](./RULES.md) | Locked stack, extensibility rules, git workflow, commit conventions, testing minimum. The non-negotiable contract. |
 | [`ROADMAP_BACKEND.md`](./ROADMAP_BACKEND.md) | 4-sprint backend plan with deliverables, DoD, migrations, tests. |
 | [`ROADMAP_FRONTEND.md`](./ROADMAP_FRONTEND.md) | 4-sprint frontend plan with deliverables, DoD, tests. |
