@@ -5,6 +5,54 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 2: Sprint 1 BE complete (auth + ingestion)
+
+- **Branch**: `backend` (4 commits on top of `caadcc3`).
+- **Done** (all Sprint 1 BE task IDs flipped to `in_review` in TRACKING):
+  - **Migration 0001** — `8c9ea6f`. All 8 blueprint tables (users,
+    workspaces, datasets, dataset_columns, pipeline_logs, ml_experiments,
+    chat_sessions, chat_messages) with UUID PKs, JSONB metadata, FK
+    cascade per blueprint §7.
+  - **Auth (M0)** — `ba23131`. POST `/auth/register` (creates User +
+    personal Workspace + JWT), POST `/auth/login` (verify password +
+    JWT). `current_user_id`, `current_user`, `current_workspace` deps
+    on `api/deps.py`. Switched passlib → `bcrypt` direct (passlib 1.7.x
+    crashes against bcrypt 4.x). Made the SQLAlchemy engine lazy.
+    Models now use portable `sa.Uuid` + `sa.JSON` (Postgres-only types
+    are kept in the migration). `AppException` global handler renders
+    JSON `{code, message}`.
+  - **Ingestion (M1-02..05)** — `4eba7e0`. POST `/datasets`
+    (multipart, validates extension via ParserRegistry, enforces
+    `MAX_FILE_SIZE_MB`, persists Dataset + DatasetColumn rows + profile
+    JSON, sets status `ready`/`failed`). GET list (workspace-scoped),
+    GET detail (with columns + raw profile). New `services/storage/`
+    backend (LocalStorage; ABC-ready for Supabase later).
+  - **Excel parser (M1-06)** — `fb56857`. `.xlsx`/`.xls` registered;
+    demonstrates that adding a format = one new file + one import line.
+- **Tests**: 17/17 pass — `pytest`. 5 auth + 6 dataset + 4 health/
+  registry + 2 ingestion-registry. SQLite in-memory via `aiosqlite` +
+  `StaticPool`; storage redirected to `tmp_path` per test.
+- **Next session start**: User merges `backend` → `develop` after
+  testing. Then start **Sprint 1 FE** on `frontend` (M0-FE-01..04 +
+  M1-FE-01..04). Read `docs/modules/M0_AUTH.md` and `M1_INGESTION.md`.
+- **Blockers**: Tests run against SQLite, not Postgres. To verify on
+  real Postgres: `docker compose up -d postgres`, set
+  `DATABASE_URL=postgresql+asyncpg://...` in `backend/.env`, run
+  `alembic upgrade head`, then `uvicorn app.main:app`. The migration
+  was tested manually for shape only — exercise it once when the user
+  starts the dev server first time.
+- **Notes**:
+  - Replaced `@app.on_event("startup")` with a lifespan context manager.
+    The lifespan is tolerant of missing optional deps (groq, lightgbm,
+    polars) so the auth path works in minimal environments.
+  - Test fixtures: `client` (DB-backed unauth), `auth_client`
+    (registers a fresh user + injects bearer header), `isolated_storage`
+    (monkeypatches `Settings.local_storage_dir` to `tmp_path`).
+  - The skeleton `current_user_id` dep was preserved verbatim — only
+    additive deps were added. JWT schema unchanged: `sub` = User UUID.
+
+---
+
 ## 2026-05-03 — Session 1 (addendum): Sync docs to all branches
 
 - **Branch**: `develop` (rule update) + `backend` + `frontend` (merge sync).

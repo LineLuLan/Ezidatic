@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (initial bootstrap) | Integration. Docs/infra commits land here. |
-| `backend` | (skeleton bootstrap) | BE work-in-progress. |
-| `frontend` | (skeleton bootstrap) | FE work-in-progress. |
+| `develop` | `86fb5c6` | Integration. Docs/infra + docs-on-every-branch rule. |
+| `backend` | `fb56857` | Sprint 1 BE done end-to-end (auth + ingestion). |
+| `frontend` | `ff00641` | Skeleton + docs sync. Sprint 1 FE pending. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -31,17 +31,17 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M0-BE-01 | Auth | BE | User SQLAlchemy model | pending | backend | – |
-| M0-BE-02 | Auth | BE | Workspace + auto-create | pending | backend | – |
-| M0-BE-03 | Auth | BE | POST /auth/register | pending | backend | – |
-| M0-BE-04 | Auth | BE | POST /auth/login | pending | backend | – |
-| M0-BE-05 | Auth | BE | current_user_id dep | pending | backend | – |
-| M1-BE-01 | Ingestion | BE | Dataset + DatasetColumn + migration 0001 | pending | backend | – |
-| M1-BE-02 | Ingestion | BE | POST /datasets upload | pending | backend | – |
-| M1-BE-03 | Ingestion | BE | Profile via ParserRegistry, persist columns | pending | backend | – |
-| M1-BE-04 | Ingestion | BE | GET /datasets list | pending | backend | – |
-| M1-BE-05 | Ingestion | BE | GET /datasets/{id} detail | pending | backend | – |
-| M1-BE-06 | Ingestion | BE | ExcelParser sample | pending | backend | – |
+| M0-BE-01 | Auth | BE | User SQLAlchemy model | in_review | backend | `ba23131` |
+| M0-BE-02 | Auth | BE | Workspace + auto-create | in_review | backend | `ba23131` |
+| M0-BE-03 | Auth | BE | POST /auth/register | in_review | backend | `ba23131` |
+| M0-BE-04 | Auth | BE | POST /auth/login | in_review | backend | `ba23131` |
+| M0-BE-05 | Auth | BE | current_user_id dep + current_user/workspace | in_review | backend | `ba23131` |
+| M1-BE-01 | Ingestion | BE | Dataset + DatasetColumn + migration 0001 | in_review | backend | `8c9ea6f` |
+| M1-BE-02 | Ingestion | BE | POST /datasets upload | in_review | backend | `4eba7e0` |
+| M1-BE-03 | Ingestion | BE | Profile via ParserRegistry, persist columns | in_review | backend | `4eba7e0` |
+| M1-BE-04 | Ingestion | BE | GET /datasets list | in_review | backend | `4eba7e0` |
+| M1-BE-05 | Ingestion | BE | GET /datasets/{id} detail | in_review | backend | `4eba7e0` |
+| M1-BE-06 | Ingestion | BE | ExcelParser sample | in_review | backend | `fb56857` |
 | M0-FE-01 | Auth | FE | Login form | pending | frontend | – |
 | M0-FE-02 | Auth | FE | Register form | pending | frontend | – |
 | M0-FE-03 | Auth | FE | useAuthStore + redirect | pending | frontend | – |
