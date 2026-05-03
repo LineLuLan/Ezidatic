@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (initial bootstrap) | Integration. Docs/infra commits land here. |
-| `backend` | (skeleton bootstrap) | BE work-in-progress. |
-| `frontend` | (skeleton bootstrap) | FE work-in-progress. |
+| `develop` | `a689a55` | WALKTHROUGH + walkthrough rule. |
+| `backend` | (see backend branch TRACKING) | Sprint 1 BE in_review. |
+| `frontend` | `9ec1967` | Sprint 1 FE complete (auth + datasets). |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -42,14 +42,14 @@ Source of truth for "what's done / what's next" across both sides. Update
 | M1-BE-04 | Ingestion | BE | GET /datasets list | pending | backend | – |
 | M1-BE-05 | Ingestion | BE | GET /datasets/{id} detail | pending | backend | – |
 | M1-BE-06 | Ingestion | BE | ExcelParser sample | pending | backend | – |
-| M0-FE-01 | Auth | FE | Login form | pending | frontend | – |
-| M0-FE-02 | Auth | FE | Register form | pending | frontend | – |
-| M0-FE-03 | Auth | FE | useAuthStore + redirect | pending | frontend | – |
-| M0-FE-04 | Auth | FE | Route guard | pending | frontend | – |
-| M1-FE-01 | Ingestion | FE | Dropzone wire-up | pending | frontend | – |
-| M1-FE-02 | Ingestion | FE | Datasets list w/ TanStack Query | pending | frontend | – |
-| M1-FE-03 | Ingestion | FE | Status badges | pending | frontend | – |
-| M1-FE-04 | Ingestion | FE | Dataset detail page | pending | frontend | – |
+| M0-FE-01 | Auth | FE | Login form (RHF + Zod) | in_review | frontend | `02d52c2` |
+| M0-FE-02 | Auth | FE | Register form | in_review | frontend | `02d52c2` |
+| M0-FE-03 | Auth | FE | useAuthStore + cookie sync + redirect | in_review | frontend | `02d52c2` |
+| M0-FE-04 | Auth | FE | Route guard middleware.ts | in_review | frontend | `02d52c2` |
+| M1-FE-01 | Ingestion | FE | Dropzone wire-up (TanStack mutation) | in_review | frontend | `8215932` |
+| M1-FE-02 | Ingestion | FE | Datasets list w/ TanStack Query | in_review | frontend | `8215932` |
+| M1-FE-03 | Ingestion | FE | StatusBadge + DatasetCard | in_review | frontend | `8215932` |
+| M1-FE-04 | Ingestion | FE | Dataset detail page + ColumnTable | in_review | frontend | `9ec1967` |
 
 ## Sprint 2 — EDA + Preprocessing (M2 + M3)
 
