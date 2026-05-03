@@ -5,6 +5,26 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 4: Sprint 1 merged to develop
+
+- **Branch**: `develop` — merged `backend` (Session 2) and `frontend`
+  (Session 3) one after the other.
+- **Done**: Sprint 1 BE + FE rows in TRACKING flipped to `done`. The
+  expected TRACKING + HANDOFF conflicts on the merge were resolved per
+  RULES §4 (keep both sets). Active branches table updated to reflect
+  `develop` as the integrated tip.
+- **Next session start**: User decides when to merge `develop` → `main`
+  for Sprint 1 release tag. After that, **Sprint 2** kicks off — M2
+  preprocessing + M3 EDA / charts. Tasks pre-populated in TRACKING
+  (M3-BE-01..03, M2-BE-01..04, M3-FE-01..03, M2-FE-01..03). Read
+  `docs/modules/M2_PREPROCESSING.md` and `docs/modules/M3_EDA_CHARTS.md`.
+- **Blockers**: Manual E2E browser smoke still pending — needs BE
+  running (skip Docker → install asyncpg + point DATABASE_URL at any
+  reachable Postgres, or wait for the SQLite-runtime Polish task).
+- **Tests at session end**: `pytest` 17/17 (BE), `pnpm build` clean (FE).
+
+---
+
 ## 2026-05-04 — Session 2: Sprint 1 BE complete (auth + ingestion)
 
 - **Branch**: `backend` (4 commits on top of `caadcc3`).
@@ -50,6 +70,64 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
     (monkeypatches `Settings.local_storage_dir` to `tmp_path`).
   - The skeleton `current_user_id` dep was preserved verbatim — only
     additive deps were added. JWT schema unchanged: `sub` = User UUID.
+
+---
+
+## 2026-05-04 — Session 3: Sprint 1 FE complete (auth + datasets UI)
+
+- **Branch**: `frontend` (3 commits on top of `f22951a`).
+- **Done** (all marked `in_review` in TRACKING):
+  - **UI primitives** — manually written shadcn-style:
+    `components/ui/{input,label,card,alert}.tsx`. Reused the existing
+    `Button` + `cn()` helper.
+  - **Auth (M0)** — `02d52c2`. New `(auth)/layout.tsx` (centered shell),
+    `/login` and `/register` pages with RHF + Zod schemas mirroring
+    Pydantic (email + min-8 password). New `lib/hooks/useAuth.ts`
+    (useLogin/useRegister/useLogout TanStack mutations). authStore now
+    has `hydrated` flag and delegates token persistence to api-client
+    helpers `setToken`/`clearToken` which sync localStorage AND a
+    non-HttpOnly cookie. New `middleware.ts` reads the cookie at the
+    edge to redirect protected/auth routes accordingly.
+  - **Ingestion list + upload (M1-FE-01..03)** — `8215932`. New
+    `components/datasets/{StatusBadge,DatasetCard}.tsx`. Dropzone
+    rewritten to use `useUploadDataset` mutation (drag-drop + click
+    browse, accepts `.csv,.tsv,.xlsx,.xls`). `/datasets` page now
+    renders a grid of DatasetCards with empty/loading/error states.
+    New `lib/hooks/useDatasets.ts`.
+  - **Ingestion detail (M1-FE-04)** — `9ec1967`. New
+    `app/(dashboard)/datasets/[id]/page.tsx` consuming `useDataset(id)`,
+    plus `components/datasets/ColumnTable.tsx` rendering the per-column
+    profile (dtype, nulls, unique, min/max/mean/std).
+- **Tests / verification**: `pnpm typecheck` clean; `pnpm build`
+  produces 9 routes + 25.8 kB middleware. `/datasets` 7.57 kB,
+  `/datasets/[id]` 2.74 kB, `/login` + `/register` 2.95 / 3 kB.
+  Manual UI smoke against a real BE not yet executed (BE in_review on
+  `backend`; user opted out of Docker).
+- **Next session start**: User reviews + merges `backend` → `develop`,
+  then `frontend` → `develop` (or merges `develop` → `frontend` first
+  to pull BE changes for E2E smoke). Then **Sprint 2** kicks off:
+  M2 (preprocessing) + M3 (EDA / charts). Read
+  `docs/modules/M2_PREPROCESSING.md` and `docs/modules/M3_EDA_CHARTS.md`.
+- **Blockers**: Manual E2E (register → upload CSV → list → detail in
+  the browser) requires BE running. To skip Docker, follow
+  `WALKTHROUGH.md` §4.3 with `DATABASE_URL=postgresql+asyncpg://…`
+  pointed at any reachable Postgres OR set up an SQLite dev path
+  (currently only used by tests; Polish task to support SQLite at
+  runtime via the lazy engine).
+- **Notes**:
+  - **Auth cookie is intentionally NOT HttpOnly** so client can clear
+    it on logout. Logged in `ARCHITECTURE.md` Deviations. Switch to
+    HttpOnly in Polish.
+  - The `useAuth.ts` hook is the only file that knows about the
+    `/api/v1/auth/{login,register}` paths; everything else goes
+    through the typed `api()` wrapper in `lib/api-client.ts`.
+  - `useDatasets.ts` defines `DatasetDetail` as the shape returned by
+    GET `/datasets/{id}` — extends `Dataset` with `columns` and raw
+    `profile`. Update both BE schema and this type together when
+    fields change (RULES §2 cross-side rule).
+  - When the user merges `backend` → `develop`, the BE TRACKING rows
+    will conflict with the FE TRACKING rows shipped here. RULES §4
+    says "keep both sets" — TRACKING is append-only.
 
 ---
 

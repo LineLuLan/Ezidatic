@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | `86fb5c6` | Integration. Docs/infra + docs-on-every-branch rule. |
-| `backend` | `fb56857` | Sprint 1 BE done end-to-end (auth + ingestion). |
-| `frontend` | `ff00641` | Skeleton + docs sync. Sprint 1 FE pending. |
+| `develop` | (Sprint 1 merge) | Integration. Sprint 1 BE + FE merged. |
+| `backend` | `fb56857` | Sprint 1 BE complete (auth + ingestion). |
+| `frontend` | `c251105` | Sprint 1 FE complete (auth + datasets). |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -31,25 +31,25 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M0-BE-01 | Auth | BE | User SQLAlchemy model | in_review | backend | `ba23131` |
-| M0-BE-02 | Auth | BE | Workspace + auto-create | in_review | backend | `ba23131` |
-| M0-BE-03 | Auth | BE | POST /auth/register | in_review | backend | `ba23131` |
-| M0-BE-04 | Auth | BE | POST /auth/login | in_review | backend | `ba23131` |
-| M0-BE-05 | Auth | BE | current_user_id dep + current_user/workspace | in_review | backend | `ba23131` |
-| M1-BE-01 | Ingestion | BE | Dataset + DatasetColumn + migration 0001 | in_review | backend | `8c9ea6f` |
-| M1-BE-02 | Ingestion | BE | POST /datasets upload | in_review | backend | `4eba7e0` |
-| M1-BE-03 | Ingestion | BE | Profile via ParserRegistry, persist columns | in_review | backend | `4eba7e0` |
-| M1-BE-04 | Ingestion | BE | GET /datasets list | in_review | backend | `4eba7e0` |
-| M1-BE-05 | Ingestion | BE | GET /datasets/{id} detail | in_review | backend | `4eba7e0` |
-| M1-BE-06 | Ingestion | BE | ExcelParser sample | in_review | backend | `fb56857` |
-| M0-FE-01 | Auth | FE | Login form | pending | frontend | – |
-| M0-FE-02 | Auth | FE | Register form | pending | frontend | – |
-| M0-FE-03 | Auth | FE | useAuthStore + redirect | pending | frontend | – |
-| M0-FE-04 | Auth | FE | Route guard | pending | frontend | – |
-| M1-FE-01 | Ingestion | FE | Dropzone wire-up | pending | frontend | – |
-| M1-FE-02 | Ingestion | FE | Datasets list w/ TanStack Query | pending | frontend | – |
-| M1-FE-03 | Ingestion | FE | Status badges | pending | frontend | – |
-| M1-FE-04 | Ingestion | FE | Dataset detail page | pending | frontend | – |
+| M0-BE-01 | Auth | BE | User SQLAlchemy model | done | backend | `ba23131` |
+| M0-BE-02 | Auth | BE | Workspace + auto-create | done | backend | `ba23131` |
+| M0-BE-03 | Auth | BE | POST /auth/register | done | backend | `ba23131` |
+| M0-BE-04 | Auth | BE | POST /auth/login | done | backend | `ba23131` |
+| M0-BE-05 | Auth | BE | current_user_id dep + current_user/workspace | done | backend | `ba23131` |
+| M1-BE-01 | Ingestion | BE | Dataset + DatasetColumn + migration 0001 | done | backend | `8c9ea6f` |
+| M1-BE-02 | Ingestion | BE | POST /datasets upload | done | backend | `4eba7e0` |
+| M1-BE-03 | Ingestion | BE | Profile via ParserRegistry, persist columns | done | backend | `4eba7e0` |
+| M1-BE-04 | Ingestion | BE | GET /datasets list | done | backend | `4eba7e0` |
+| M1-BE-05 | Ingestion | BE | GET /datasets/{id} detail | done | backend | `4eba7e0` |
+| M1-BE-06 | Ingestion | BE | ExcelParser sample | done | backend | `fb56857` |
+| M0-FE-01 | Auth | FE | Login form (RHF + Zod) | done | frontend | `02d52c2` |
+| M0-FE-02 | Auth | FE | Register form | done | frontend | `02d52c2` |
+| M0-FE-03 | Auth | FE | useAuthStore + cookie sync + redirect | done | frontend | `02d52c2` |
+| M0-FE-04 | Auth | FE | Route guard middleware.ts | done | frontend | `02d52c2` |
+| M1-FE-01 | Ingestion | FE | Dropzone wire-up (TanStack mutation) | done | frontend | `8215932` |
+| M1-FE-02 | Ingestion | FE | Datasets list w/ TanStack Query | done | frontend | `8215932` |
+| M1-FE-03 | Ingestion | FE | StatusBadge + DatasetCard | done | frontend | `8215932` |
+| M1-FE-04 | Ingestion | FE | Dataset detail page + ColumnTable | done | frontend | `9ec1967` |
 
 ## Sprint 2 — EDA + Preprocessing (M2 + M3)
 
