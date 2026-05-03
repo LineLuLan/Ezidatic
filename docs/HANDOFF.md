@@ -3,6 +3,21 @@
 Reverse-chronological. Latest entry on top. Append a new entry at the
 **end of every session** before stopping.
 
+---
+
+## 2026-05-03 — Session 1 (addendum): Sync docs to all branches
+
+- **Branch**: `develop` (rule update) + `backend` + `frontend` (merge sync).
+- **Done**:
+  - Added "Docs-on-every-branch rule" in `docs/RULES.md` §4.
+  - Merged `develop` into `backend`; merged `develop` into `frontend` so
+    both side branches now carry `CLAUDE.md` + the full `docs/` tree.
+- **Why**: User flagged that side branches were missing docs after the
+  initial bootstrap. From now on, any docs change on develop must be
+  propagated to backend + frontend in the same session.
+- **Next session start**: unchanged — Sprint 1 M0/M1 work.
+- **Tests**: no code changed; nothing to run.
+
 Entry template:
 
 ```

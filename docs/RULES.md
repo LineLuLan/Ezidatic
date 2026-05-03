@@ -155,6 +155,27 @@ After every feature merged to `develop`:
 If a feature deviates from the blueprint, add a row to the Deviations table
 in `docs/ARCHITECTURE.md`.
 
+### Docs-on-every-branch rule
+
+`CLAUDE.md` (root) and the entire `docs/` folder MUST be present on every
+active branch — `main`, `develop`, `backend`, `frontend`, and any future
+side branches. Sessions that start on a side branch read `CLAUDE.md` and
+`docs/HANDOFF.md` first; missing those files leaves the session blind.
+
+Propagation rules:
+
+- Whenever a commit on `develop` touches `docs/` or `CLAUDE.md`, merge
+  `develop` into both side branches in the same session and push:
+  `git checkout backend && git merge develop && git push origin backend`,
+  same for `frontend`.
+- New branches must be created from a tip that already contains `docs/`
+  (i.e. `develop` or later). Never fork from a commit that predates the
+  docs bootstrap.
+- A side-branch commit MAY update `docs/TRACKING.md` and append to
+  `docs/HANDOFF.md`. Conflicts on those two files between `develop` and
+  a side branch are normal — resolve by keeping both sets of changes
+  (TRACKING rows are append-only, HANDOFF entries are append-on-top).
+
 ---
 
 ## 5. Testing Minimum
