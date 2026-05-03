@@ -5,6 +5,49 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 5 (close): manual FE smoke checklist
+
+- **Branch**: `develop` (no code change). Session ended after Sprint 1
+  merge so the next session starts clean.
+- **State**: working tree clean. Local main 1 commit ahead of origin
+  (the bootstrap docs commit `8289e16`); origin develop = `a2f5720`.
+  All background processes (uvicorn, pnpm) stopped. No node/python
+  processes leftover.
+- **Manual FE smoke that works without BE running**:
+  1. `cd frontend && pnpm dev` → http://localhost:3000.
+  2. Landing `/` renders with Get-started + Sign-in buttons.
+  3. `/login` and `/register` — RHF + Zod validation works:
+     - Empty submit → inline errors per field.
+     - `password` < 8 chars → "Password must be at least 8".
+     - Bad email → "Please enter a valid email".
+  4. Submit a valid form → red Alert ("Failed to fetch" or similar)
+     because BE isn't running. That's expected; it confirms the
+     api-client + AlertDescription wiring is correct.
+  5. Try `/datasets` directly in the URL bar → middleware redirects
+     to `/login?from=/datasets`. That validates the route guard.
+  6. To unblock the dashboard for visual inspection without a real
+     login: open DevTools console and run
+     `document.cookie='ezidatic_token=test;path=/'`, then revisit
+     `/datasets`. Middleware lets it through, the page calls
+     `GET /api/v1/datasets` and shows an Alert with the network
+     error. Use this to verify the layout, sidebar nav, Dropzone,
+     and DatasetCard styling.
+- **What still needs BE running** (deferred to next session): the
+  full register → upload → list → detail browser flow, and the
+  /datasets/{id} detail page rendering real ColumnTable rows.
+- **Next session start**: Two paths, pick one:
+  1. **Sprint 2 BE** on `backend`: pull develop, then implement
+     M2 (preprocessing) + M3 (EDA / chart specs). Start with
+     `docs/modules/M2_PREPROCESSING.md` and `M3_EDA_CHARTS.md`.
+  2. **BE runtime path without Docker**: make the migration portable
+     (sa.Uuid + sa.JSON with JSONB variant) so `alembic upgrade head`
+     works against `sqlite+aiosqlite:///./data/dev.db`. Land a
+     `WALKTHROUGH.md` "Quick path: SQLite" subsection. Then full FE
+     E2E becomes possible without Docker.
+- **Blockers**: None. User explicitly opted out of Docker for now.
+
+---
+
 ## 2026-05-04 — Session 4: Sprint 1 merged to develop
 
 - **Branch**: `develop` — merged `backend` (Session 2) and `frontend`
