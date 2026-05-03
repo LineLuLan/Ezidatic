@@ -4,8 +4,9 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 
 # Validation & settings
-pydantic==2.10.4
+pydantic[email]==2.10.4
 pydantic-settings==2.7.1
+email-validator==2.2.0
 
 # Database
 sqlalchemy==2.0.36
@@ -14,7 +15,7 @@ alembic==1.14.0
 
 # Auth
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
 
 # Data
 polars==1.18.0

@@ -1,10 +1,14 @@
-"""Declarative base + reusable mixins."""
+"""Declarative base + reusable mixins.
+
+Types are dialect-agnostic so tests can run on SQLite while production runs
+on PostgreSQL. The Alembic migrations still emit PostgreSQL-native UUID +
+JSONB columns (see `alembic/versions/`).
+"""
 
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, func
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy import DateTime, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -14,7 +18,7 @@ class Base(DeclarativeBase):
 
 class UUIDPkMixin:
     id: Mapped[UUID] = mapped_column(
-        PGUUID(as_uuid=True),
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )

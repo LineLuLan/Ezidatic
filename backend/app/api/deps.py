@@ -1,14 +1,17 @@
-"""FastAPI dependencies — DB session + current user."""
+"""FastAPI dependencies — DB session + current user/workspace."""
 
 from collections.abc import AsyncIterator
 from uuid import UUID
 
 from fastapi import Depends, Header
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.exceptions import UnauthorizedError
+from app.core.exceptions import NotFoundError, UnauthorizedError
 from app.core.security import decode_token
+from app.models.user import User
+from app.models.workspace import Workspace
 
 
 async def db_session() -> AsyncIterator[AsyncSession]:
@@ -29,5 +32,28 @@ async def current_user_id(
     return UUID(payload["sub"])
 
 
-CurrentUserDep = Depends(current_user_id)
-DbDep = Depends(db_session)
+async def current_user(
+    user_id: UUID = Depends(current_user_id),
+    db: AsyncSession = Depends(db_session),
+) -> User:
+    user = await db.get(User, user_id)
+    if user is None:
+        raise UnauthorizedError("User no longer exists")
+    return user
+
+
+async def current_workspace(
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(db_session),
+) -> Workspace:
+    """Return the user's primary workspace (oldest one they own)."""
+    stmt = (
+        select(Workspace)
+        .where(Workspace.owner_id == user.id)
+        .order_by(Workspace.created_at)
+        .limit(1)
+    )
+    workspace = (await db.execute(stmt)).scalar_one_or_none()
+    if workspace is None:
+        raise NotFoundError("No workspace for user")
+    return workspace

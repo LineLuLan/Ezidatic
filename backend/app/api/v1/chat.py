@@ -13,5 +13,8 @@ async def create_session(_dataset_id: str | None = None) -> dict:
 
 
 @router.post("/sessions/{session_id}/messages")
-async def send_message(session_id: str, _payload: ChatMessageIn) -> dict:
-    raise NotImplementedError("Sprint 4 / M5_AGENTIC_CHAT: implement send + SSE stream")
+async def send_message(session_id: str, payload: ChatMessageIn) -> dict:
+    raise NotImplementedError(
+        f"Sprint 4 / M5_AGENTIC_CHAT: implement send + SSE stream "
+        f"for session {session_id} with content={payload.content!r}"
+    )

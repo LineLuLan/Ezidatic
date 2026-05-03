@@ -6,7 +6,7 @@ router = APIRouter()
 
 
 @router.post("")
-async def upload_dataset(_file: UploadFile) -> dict:
+async def upload_dataset(file: UploadFile) -> dict:
     raise NotImplementedError("Sprint 1 / M1_INGESTION: implement upload")
 
 
