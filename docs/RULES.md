@@ -176,6 +176,26 @@ Propagation rules:
   a side branch are normal — resolve by keeping both sets of changes
   (TRACKING rows are append-only, HANDOFF entries are append-on-top).
 
+### Walkthrough-must-be-current rule
+
+`docs/WALKTHROUGH.md` is the runbook for setup / run / test. It is the
+single place a new contributor (human or Claude) goes to learn how to
+boot the project end to end. Therefore:
+
+- When a commit changes any of the following, **update WALKTHROUGH in
+  the same commit** (one slice, one commit — don't backfill later):
+  - A new runtime or dev dependency in `backend/requirements*.txt` or
+    `frontend/package.json`.
+  - A new required env var in `backend/.env.example` or
+    `frontend/.env.local.example`.
+  - A new command to run, build, lint, migrate, or test.
+  - A new sample endpoint added to the §7 end-to-end smoke flow.
+  - A new common error worth documenting in §8.
+- Treat WALKTHROUGH like TRACKING — it is current-state, not historical.
+  Replace stale sections rather than appending.
+- A commit that breaks WALKTHROUGH steps is a regression. Either fix
+  the steps or revert the change.
+
 ---
 
 ## 5. Testing Minimum
