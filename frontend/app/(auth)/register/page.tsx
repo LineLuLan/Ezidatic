@@ -17,17 +17,20 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin } from "@/lib/hooks/useAuth";
+import { useRegister } from "@/lib/hooks/useAuth";
 
 const schema = z.object({
   email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128, "Password must be at most 128 characters"),
 });
 
 type FormValues = z.infer<typeof schema>;
 
-export default function LoginPage() {
-  const login = useLogin();
+export default function RegisterPage() {
+  const reg = useRegister();
   const {
     register,
     handleSubmit,
@@ -37,19 +40,21 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = (data: FormValues) => login.mutate(data);
+  const onSubmit = (data: FormValues) => reg.mutate(data);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Welcome back. Enter your credentials to continue.</CardDescription>
+        <CardTitle>Create your account</CardTitle>
+        <CardDescription>
+          We'll spin up a personal workspace for your datasets.
+        </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-4">
-          {login.isError && (
+          {reg.isError && (
             <Alert variant="destructive">
-              <AlertDescription>{login.error?.message ?? "Login failed"}</AlertDescription>
+              <AlertDescription>{reg.error?.message ?? "Registration failed"}</AlertDescription>
             </Alert>
           )}
 
@@ -72,7 +77,7 @@ export default function LoginPage() {
             <Input
               id="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               {...register("password")}
             />
             {errors.password && (
@@ -81,13 +86,13 @@ export default function LoginPage() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
-          <Button type="submit" className="w-full" disabled={login.isPending}>
-            {login.isPending ? "Signing in…" : "Sign in"}
+          <Button type="submit" className="w-full" disabled={reg.isPending}>
+            {reg.isPending ? "Creating account…" : "Create account"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            No account?{" "}
-            <Link href="/register" className="underline">
-              Create one
+            Already have an account?{" "}
+            <Link href="/login" className="underline">
+              Sign in
             </Link>
           </p>
         </CardFooter>
