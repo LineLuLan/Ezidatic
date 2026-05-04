@@ -79,6 +79,44 @@ export interface PreprocessingRunResponse {
   logs: PipelineLog[];
 }
 
+export type TaskType = "classification" | "regression";
+
+export interface TrainRequest {
+  dataset_id: string;
+  target_column: string;
+  task_type: TaskType;
+  background?: boolean;
+}
+
+export interface LeaderboardEntry {
+  name: string;
+  metrics: Record<string, number>;
+  train_time_sec: number;
+  feature_importance: Record<string, number> | null;
+}
+
+export interface TrainResponse {
+  dataset_id: string;
+  task_type: TaskType;
+  target_column: string;
+  leaderboard: LeaderboardEntry[];
+  best: LeaderboardEntry | null;
+  artifact_path: string | null;
+  extras: Record<string, unknown>;
+}
+
+export interface ExperimentOut {
+  id: string;
+  dataset_id: string;
+  target_column: string;
+  task_type: string;
+  model_type: string;
+  metrics: Record<string, unknown> | null;
+  hyperparams: Record<string, unknown> | null;
+  artifact_path: string | null;
+  created_at: string;
+}
+
 export type ChatRole = "user" | "assistant" | "tool" | "system";
 
 export interface ChatMessage {
