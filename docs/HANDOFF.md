@@ -5,6 +5,32 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 11: Sprint 3 merged to develop (BE + FE) + .env scaffolded
+
+- **Branch**: `develop` — merged `backend` (Session 9 commits, including
+  POL-08 SQLite-portable migrations + Sprint 3 BE M4 AutoML) and
+  `frontend` (Session 10 — Sprint 3 FE M4 AutoML page) one after the
+  other.
+- **Done**: All 11 Sprint 3 task IDs flipped to `done` in TRACKING (7
+  BE + 4 FE). POL-08 stays as `in_review` in the Polish section but
+  effectively merged. Conflicts on TRACKING + HANDOFF resolved per
+  RULES §4 ("keep both sets") — backend rows kept from HEAD, frontend
+  rows added underneath.
+- **State**: working tree clean. `pytest` 33/33, `pnpm typecheck` +
+  `pnpm build` clean (verified pre-merge).
+- **Next session start**: Sprint 4 (M5 Agentic Chat). User has been
+  asked to populate `backend/.env` with at least one LLM provider key
+  (Groq is the recommended primary; Gemini also for embedding). The
+  fallback chain is Groq → Gemini → OpenRouter → Ollama. Read
+  `docs/modules/M5_CHAT_AGENTS.md` first. M5-BE-01..08 + M5-FE-01..06.
+- **Blockers**: Sprint 4 BE needs at least one provider key in
+  `backend/.env`. Without keys, Sprint 4 BE work can still write the
+  provider adapters and tests (mocked HTTP), but live integration
+  smoke needs a real key.
+- **Tests at session end**: 33/33 pytest, FE typecheck/build clean.
+
+---
+
 ## 2026-05-04 — Session 9: SQLite-portable migrations + Sprint 3 BE (M4 AutoML)
 
 - **Branch**: `backend` — 3 commits on top of `4e7c79c` (develop tip
@@ -79,6 +105,56 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
   - Sprint 3 acceptance "all classifiers train < 30s" easily met for
     the 60-row Iris-shaped fixture; large datasets may need
     background=true.
+
+---
+
+## 2026-05-04 — Session 10: Sprint 3 FE complete (AutoML UI)
+
+- **Branch**: `frontend` — 1 commit (`5430b67`) on top of `4e7c79c`
+  (develop tip after Sprint 2 merge). Note: this branch does NOT carry
+  Sprint 3 BE; that lives on `backend` (Session 9 — `7e9a742`) and the
+  SQLite-portable migrations polish (Session 9 — `658aa99`). Both are
+  `in_review` waiting for user to merge backend → develop.
+- **Done** (all 4 Sprint 3 FE task IDs `in_review` in TRACKING):
+  - **M4-FE-01..04** AutoML page. New `lib/types.ts` Sprint 3 types
+    (TaskType, TrainRequest, LeaderboardEntry, TrainResponse,
+    ExperimentOut) mirroring backend schemas. New `lib/hooks/useMl.ts`
+    (`useTrainModel` mutation + `useLeaderboard` query that accepts an
+    optional `pollMs` for `refetchInterval`). New
+    `components/ml/{TrainForm,Leaderboard,ExperimentDrawer}.tsx`. The
+    `/ml/[id]/page.tsx` stub is now a working page: column dropdown is
+    fed from `useDataset` (preprocessed columns when available), the
+    train form posts via mutation, and on `background=true` the page
+    flips into polling mode (5s interval) until the leaderboard grows
+    past the pre-submit row count.
+- **Tests / verification**: `pnpm typecheck` clean. `pnpm build` clean.
+  Routes: `/ml/[id]` 7.74 kB / 219 kB FLJS (recharts heavy via the
+  feature-importance bar chart).
+- **Next session start**: User merges `backend` → `develop` first
+  (brings in Sprint 3 BE + SQLite-portable migrations + AutoML smoke in
+  WALKTHROUGH §7.6), then `frontend` → `develop` (this Session 10
+  commit). After both lands, **Sprint 4 (M5 Agentic Chat)** is the next
+  feature batch — that's when LLM API keys (GROQ_API_KEY,
+  GEMINI_API_KEY) become required. Read `docs/modules/M5_CHAT_AGENTS.md`
+  next.
+- **Blockers**: Sprint 4 needs at least one provider key. Free tiers:
+  console.groq.com (primary) + aistudio.google.com (Gemini, also used
+  for embedding text-embedding-004). Manual E2E browser smoke is
+  unblocked by Session 9's POL-08 — set
+  `DATABASE_URL=sqlite+aiosqlite:///./data/dev.db`, `alembic upgrade
+  head`, run uvicorn + `pnpm dev`, register, upload, train, observe
+  leaderboard.
+- **Notes**:
+  - Polling stop condition is "row count strictly grew past pre-submit
+    snapshot" — after the BackgroundTask finishes the leaderboard
+    query gains N rows in one fetch, so this fires reliably. The hook
+    sets `refetchInterval` only while polling is active.
+  - The drawer flags logistic_regression's importance as
+    "coefficient-based and scale-dependent" so users don't rank
+    features cross-model directly.
+  - Train submit uses `setPollUntilCount(before)` AFTER awaiting the
+    mutation. If the BE returns sync results (background=false), the
+    leaderboard refetches once instead of polling.
 
 ---
 

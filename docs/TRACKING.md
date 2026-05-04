@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (Sprint 2 merge) | Integration. Sprint 1 + Sprint 2 BE + FE merged. |
-| `backend` | `7e9a742` | Sprint 3 BE complete (M4 AutoML) + SQLite-portable migrations. In review. |
-| `frontend` | `5c83663` | Sprint 2 FE merged into develop. Ready for Sprint 3 FE. |
+| `develop` | (Sprint 3 merge) | Integration. Sprint 1 + 2 + 3 BE + FE merged. |
+| `backend` | `7e9a742` | Sprint 3 BE merged into develop. Ready for Sprint 4. |
+| `frontend` | `5430b67` | Sprint 3 FE merged into develop. Ready for Sprint 4. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -73,17 +73,17 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M4-BE-01 | AutoML | BE | RandomForestClassifier | in_review | backend | `7e9a742` |
-| M4-BE-02 | AutoML | BE | LogisticRegression | in_review | backend | `7e9a742` |
-| M4-BE-03 | AutoML | BE | Regressor variants | in_review | backend | `7e9a742` |
-| M4-BE-04 | AutoML | BE | POST /ml/train wired | in_review | backend | `7e9a742` |
-| M4-BE-05 | AutoML | BE | Save model artifact | in_review | backend | `7e9a742` |
-| M4-BE-06 | AutoML | BE | GET /ml/leaderboard/{id} | in_review | backend | `7e9a742` |
-| M4-BE-07 | AutoML | BE | Background-task training | in_review | backend | `7e9a742` |
-| M4-FE-01 | AutoML | FE | Train form | pending | frontend | – |
-| M4-FE-02 | AutoML | FE | Leaderboard table | pending | frontend | – |
-| M4-FE-03 | AutoML | FE | Drawer with feature importance | pending | frontend | – |
-| M4-FE-04 | AutoML | FE | Polling/websocket | pending | frontend | – |
+| M4-BE-01 | AutoML | BE | RandomForestClassifier | done | backend | `7e9a742` |
+| M4-BE-02 | AutoML | BE | LogisticRegression | done | backend | `7e9a742` |
+| M4-BE-03 | AutoML | BE | Regressor variants | done | backend | `7e9a742` |
+| M4-BE-04 | AutoML | BE | POST /ml/train wired | done | backend | `7e9a742` |
+| M4-BE-05 | AutoML | BE | Save model artifact | done | backend | `7e9a742` |
+| M4-BE-06 | AutoML | BE | GET /ml/leaderboard/{id} | done | backend | `7e9a742` |
+| M4-BE-07 | AutoML | BE | Background-task training | done | backend | `7e9a742` |
+| M4-FE-01 | AutoML | FE | Train form | done | frontend | `5430b67` |
+| M4-FE-02 | AutoML | FE | Leaderboard table | done | frontend | `5430b67` |
+| M4-FE-03 | AutoML | FE | Drawer with feature importance | done | frontend | `5430b67` |
+| M4-FE-04 | AutoML | FE | Polling/websocket | done | frontend | `5430b67` |
 
 ## Sprint 4 — Agentic Chat (M5)
 
