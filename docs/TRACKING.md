@@ -20,8 +20,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 2 merge) | Integration. Sprint 1 + Sprint 2 BE + FE merged. |
-| `backend` | `3d637ab` | Sprint 2 BE merged into develop. Ready for Sprint 3. |
-| `frontend` | `5c83663` | Sprint 2 FE merged into develop. Ready for Sprint 3. |
+| `backend` | (see backend TRACKING) | Sprint 3 BE in_review (M4 AutoML + SQLite-portable migrations). |
+| `frontend` | `5430b67` | Sprint 3 FE complete (AutoML page). In review. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -80,10 +80,10 @@ Source of truth for "what's done / what's next" across both sides. Update
 | M4-BE-05 | AutoML | BE | Save model artifact | pending | backend | – |
 | M4-BE-06 | AutoML | BE | GET /ml/leaderboard/{id} | pending | backend | – |
 | M4-BE-07 | AutoML | BE | Background-task training | pending | backend | – |
-| M4-FE-01 | AutoML | FE | Train form | pending | frontend | – |
-| M4-FE-02 | AutoML | FE | Leaderboard table | pending | frontend | – |
-| M4-FE-03 | AutoML | FE | Drawer with feature importance | pending | frontend | – |
-| M4-FE-04 | AutoML | FE | Polling/websocket | pending | frontend | – |
+| M4-FE-01 | AutoML | FE | Train form | in_review | frontend | `5430b67` |
+| M4-FE-02 | AutoML | FE | Leaderboard table | in_review | frontend | `5430b67` |
+| M4-FE-03 | AutoML | FE | Drawer with feature importance | in_review | frontend | `5430b67` |
+| M4-FE-04 | AutoML | FE | Polling/websocket | in_review | frontend | `5430b67` |
 
 ## Sprint 4 — Agentic Chat (M5)
 
