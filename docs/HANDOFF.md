@@ -5,6 +5,93 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 12: Sprint 4 BE complete (M5 Agentic Chat)
+
+- **Branch**: `backend` — 5 commits on top of `70d6458` (develop tip
+  after Sprint 3 merge):
+  - `d2d1bb1` — `feat(chat)` 4-provider chain (Groq/Gemini/OpenRouter/
+    Ollama) + LLMResponse dataclass with usage. Updated `.env.example`
+    + `config.py` defaults to working models (`gemini-2.5-flash-lite`
+    + `gemini-embedding-001` + `z-ai/glm-4.5-air:free`) since
+    `gemini-2.0-flash` and `text-embedding-004` are no longer free /
+    deprecated, and most Llama-`:free` on OpenRouter are upstream
+    rate-limited.
+  - `3e5718a` — `feat(chat)` robust router (strips code fences, finds
+    first {...} block, falls back to `QueryType.EXPLAIN` on parse
+    failure). Live-verified against Groq with 5 sample questions.
+  - `964520a` — `feat(chat)` query_dataset tool (Polars SQLContext;
+    rejects non-SELECT and multi-statement) + plot_chart tool (wraps
+    histogram/bar/scatter/heatmap helpers) + sql_worker_stream (1
+    one-shot LLM call to draft SQL → tool execution → streamed
+    summary).
+  - `7a7cb2f` — `feat(chat)` chat endpoints. POST/GET /chat/sessions,
+    GET messages, POST /sessions/{id}/messages (StreamingResponse SSE,
+    `text/event-stream`). SSE event protocol = `intent | delta |
+    tool_calls | error | done | saved`. Persists user row before
+    streaming starts, assistant row after the stream completes; the
+    assistant row carries content, tool_calls JSON, token_usage JSON,
+    provider_used.
+  - `6d53061` — `test(chat)` 10 cases (43/43 suite total). Includes a
+    `fake_registry` fixture that swaps in scripted providers per test,
+    so the chat round-trip can be exercised deterministically without
+    burning real Groq tokens.
+- **Done — Sprint 4 BE** (all 8 task IDs `in_review` in TRACKING):
+  M5-BE-01..08 — see commit map above.
+- **Tests**: `pytest -q` → **43 passed in 20.82s**. Test files now:
+  test_health (4), test_auth (5), test_datasets (6), test_ingestion
+  (2), test_eda (4), test_preprocessing (5), test_ml (7), **test_chat
+  (10)**.
+- **Live key check (this session)**:
+  - Groq + Gemini + OpenRouter keys all valid against `/models`.
+  - **Updated `.env`**:
+    `GEMINI_MODEL=gemini-2.0-flash` → `gemini-2.5-flash-lite` (2.0 is
+    quota=0 on free tier; 2.5-flash-lite is the fastest non-thinking
+    GA model that still fits free tier).
+    `GEMINI_EMBED_MODEL=text-embedding-004` → `gemini-embedding-001`
+    (text-embedding-004 returns 404 not found).
+    `OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free` →
+    `z-ai/glm-4.5-air:free` (Llama free tier is upstream-rate-limited
+    via Venice; GLM-4.5-Air was the only free model that responded
+    cleanly).
+  - **Environment SSL caveat**: this dev box can't verify
+    openrouter.ai's TLS chain (urllib + httpx + curl all fail with
+    `unable to get local issuer certificate`). The fallback chain
+    handles it gracefully — Groq is priority=1 so OpenRouter is
+    skipped in practice. If the user wants OpenRouter active they need
+    `pip install --upgrade certifi` or set `SSL_CERT_FILE` to a
+    Mozilla bundle.
+- **Next session start**: User merges `backend` → `develop`. Then
+  Sprint 4 FE on `frontend`: M5-FE-01..06 (SSE chat input,
+  MessageList streaming, provider badge, tool-call display, embed
+  ChartRenderer in messages, session list sidebar). Read
+  `docs/modules/M5_CHAT_AGENTS.md`.
+- **Blockers**: none for FE work. For E2E browser smoke against the
+  Sprint 4 chat: SQLite path works (POL-08), Groq + Gemini keys work,
+  router + sql_worker + SSE all wired. WALKTHROUGH §7.7 ships a curl
+  recipe for the chat flow.
+- **Notes**:
+  - `LLMProvider.invoke` now returns `LLMResponse(content, provider,
+    usage)`. Anyone calling it externally must read `.content`.
+    `router.py` and `explain_worker.py` were updated; sql_worker uses
+    `.content` directly; the chat endpoint reads `last_provider` and
+    `last_usage` off the adapter.
+  - Streaming usage: providers populate `self.last_stream_usage` on
+    the final SSE chunk; `LLMAdapter.stream` copies it to
+    `last_usage` after the iterator drains. SSE generator persists
+    those on the assistant ChatMessage row.
+  - SSE event types: keep stable for the FE (`intent` first, then any
+    number of `delta`, optionally `tool_calls`, then `done`, then
+    `saved`). FE state machine should accumulate `delta.text` until
+    `done`, then refresh the message list to pick up the persisted
+    row (or use `done.tool_calls` for inline rendering before the
+    fetch).
+  - Polars `pl.SQLContext` table name is hard-coded to `data`. The
+    sql_worker prompt tells the LLM about that table only. If we ever
+    expose multiple datasets per session, give each a different
+    SQLContext key.
+
+---
+
 ## 2026-05-04 — Session 11: Sprint 3 merged to develop (BE + FE) + .env scaffolded
 
 - **Branch**: `develop` — merged `backend` (Session 9 commits, including
