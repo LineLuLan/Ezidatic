@@ -10,14 +10,22 @@ from app.services.ml.base_estimator import ModelRegistry
 log = logging.getLogger(__name__)
 
 
-async def auto_train(
+def auto_train(
     X: Any,
     y: Any,
     task: str = "classification",
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> list[dict[str, Any]]:
-    """Train every registered estimator for `task`, return ranked leaderboard."""
+    """Train every registered estimator for ``task`` and return a ranked
+    leaderboard.
+
+    Each entry is a dict with keys: name, metrics, train_time_sec,
+    feature_importance, model. The trained model object is included so
+    callers (e.g. the /ml/train endpoint) can persist the best artifact.
+    Failures are logged and skipped — the leaderboard only contains
+    estimators that successfully fit.
+    """
     X_tr, X_val, y_tr, y_val = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
@@ -32,6 +40,7 @@ async def auto_train(
                     "metrics": result.metrics,
                     "train_time_sec": result.train_time_sec,
                     "feature_importance": result.feature_importance,
+                    "model": result.model,
                 }
             )
         except Exception as e:  # noqa: BLE001

@@ -27,6 +27,16 @@ class LocalStorage:
         self.root.mkdir(parents=True, exist_ok=True)
         return self.root / f"{dataset_id}_pp.csv"
 
+    def models_dir(self) -> Path:
+        """Directory under storage root for AutoML model artifacts."""
+        target = self.root / "models"
+        target.mkdir(parents=True, exist_ok=True)
+        return target
+
+    def path_for_model(self, dataset_id: UUID, model_name: str) -> Path:
+        """Resolve {root}/models/{dataset_id}_{model_name}.joblib."""
+        return self.models_dir() / f"{dataset_id}_{model_name}.joblib"
+
 
 def get_storage() -> LocalStorage:
     """FastAPI dependency. Reads settings each call so tests can monkey-patch."""
