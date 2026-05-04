@@ -104,6 +104,27 @@ Source of truth for "what's done / what's next" across both sides. Update
 | M5-FE-05 | Chat | FE | Embed ChartRenderer in messages | done | frontend | `21449d7` |
 | M5-FE-06 | Chat | FE | Session list sidebar | done | frontend | `21449d7` |
 
+## Sprint 5 — Quality (Agent + EDA + ML)
+
+> Filed Session 15 as a follow-up to Sprint 4 smoke. Detail per issue
+> lives in `docs/modules/M_QUALITY.md`. Priority **P0 = high ROI / low
+> risk**, **P1 = schema or capability extension**, **P2 = polish**.
+
+| ID | Module | Side | Task | Priority | Status |
+|----|--------|------|------|----------|--------|
+| Q5-AGENT-01 | Chat | BE | Router few-shot examples | P0 | pending |
+| Q5-AGENT-02 | Chat | BE | SQL worker schema enrichment (sample values + ranges) | P0 | pending |
+| Q5-AGENT-03 | Chat | BE | SQL worker self-correction retry on tool failure | P1 | pending |
+| Q5-AGENT-04 | Chat | BE | Explain worker grounded with dataset profile | P1 | pending |
+| Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | pending |
+| Q5-EDA-02 | EDA | BE+FE | Box plot helper + renderer for skewed numerics | P2 | pending |
+| Q5-EDA-03 | EDA | BE | Auto-scatter for top-correlated pairs | P2 | pending |
+| Q5-ML-01 | AutoML | BE | Median/mode imputation (replace fillna(0)) | P0 | pending |
+| Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | pending |
+| Q5-ML-03 | AutoML | BE+FE | 5-fold CV reporting (cv_mean, cv_std) | P1 | pending |
+| Q5-ML-04 | AutoML | BE+FE | Class-imbalance handling + metric selection (F1/AUC) | P1 | pending |
+| Q5-ML-05 | AutoML | BE | Lightweight hyperparameter tuning (randomized search) | P2 | pending |
+
 ---
 
 ## Polish (post-Sprint 4)

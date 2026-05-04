@@ -5,6 +5,55 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-05 — Session 15: Sprint 5 "Quality" backlog filed
+
+- **Branch**: `develop` (cross-cutting docs only, per CLAUDE.md). No
+  code change.
+- **Done**:
+  - Added Sprint 5 section to `docs/TRACKING.md` between Sprint 4 and
+    Polish — 12 rows: 4 Agent (Q5-AGENT-01..04), 3 EDA (Q5-EDA-01..03),
+    5 ML (Q5-ML-01..05). Each with P0/P1/P2 priority + status `pending`.
+  - Created `docs/modules/M_QUALITY.md` with full detail per issue:
+    Root cause (file:line), Proposed fix, Acceptance criterion, Touches.
+    Reuse notes (TrainRequest.extras pattern, ChartSpec discriminated
+    union, registry pattern from RULES §2). Suggested execution order
+    P0 → P1 → P2.
+- **Why**: Session 14 confirmed all blueprint features `done`, but
+  user feedback flagged agent reliability + EDA/ML accuracy gaps. P0
+  items (Q5-AGENT-01, Q5-AGENT-02, Q5-ML-01, Q5-ML-02) are 1-session
+  prompt + helper edits with high ROI. P1/P2 items extend
+  `TrainRequest`/`ChartSpec` and need cross-side commits per RULES §2.
+- **Next session start**: Pick first P0 issue. Recommended order:
+  1. **Q5-AGENT-01** on `backend` — router few-shot examples
+     (`backend/app/services/agents/router.py:22-30` prompt edit;
+     write `tests/test_agent_router.py` fixture eval).
+  2. **Q5-AGENT-02** on `backend` — SQL worker schema enrichment
+     (`backend/app/services/agents/workers/sql_worker.py:44-47`).
+  3. **Q5-ML-01** on `backend` — replace `fillna(0)` with median/mode
+     (`backend/app/api/v1/ml.py:49`); extend `TrainRequest.imputation`.
+  4. **Q5-ML-02** on `backend` — auto-encode categoricals
+     (`backend/app/api/v1/ml.py:47-48`).
+  Each one: branch `backend`, implement, `pytest`, push, update
+  TRACKING.md (`pending → in_review`), append HANDOFF, user merges.
+- **Blockers**: None. P0 wave is self-contained — no new env vars, no
+  schema migrations, no FE changes.
+- **Tests at session end**: docs only; pre-existing `pytest 43/43` and
+  FE typecheck/build state unchanged.
+- **Notes**:
+  - **Docs propagation**: per `feedback_docs_on_every_branch.md`, when
+    user merges these doc changes off `develop`, both `backend` and
+    `frontend` need the new TRACKING + M_QUALITY.md too. Easiest:
+    after merging, fast-forward (or merge develop → backend, develop →
+    frontend) so side branches carry the backlog before any Q5 work
+    starts.
+  - **Polish vs Quality**: POL-01..08 are infra/CI/deploy concerns,
+    intentionally separate from Q5 (which is *correctness/quality*).
+    Both backlogs can be drained in parallel.
+  - **Out of scope** (logged in M_QUALITY.md): vector RAG, streaming
+    SQL execution, active-learning feedback loop, paid-model swap.
+
+---
+
 ## 2026-05-04 — Session 14: Sprint 4 merged to develop (BE + FE) — feature-complete
 
 - **Branch**: `develop` — merged `backend` (Session 12 commits + docs
