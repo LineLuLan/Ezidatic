@@ -20,8 +20,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 1 merge) | Integration. Sprint 1 BE + FE merged. |
-| `backend` | `fb56857` | Sprint 1 BE complete (auth + ingestion). |
-| `frontend` | `c251105` | Sprint 1 FE complete (auth + datasets). |
+| `backend` | (see backend TRACKING) | Sprint 2 BE in_review (EDA + preprocessing). |
+| `frontend` | `5c83663` | Sprint 2 FE complete (EDA page + preprocessing builder). In review. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -62,12 +62,12 @@ Source of truth for "what's done / what's next" across both sides. Update
 | M2-BE-02 | Preprocessing | BE | EncodeCategorical step | pending | backend | – |
 | M2-BE-03 | Preprocessing | BE | POST /preprocessing run | pending | backend | – |
 | M2-BE-04 | Preprocessing | BE | GET /preprocessing logs | pending | backend | – |
-| M3-FE-01 | EDA | FE | EDA page renders charts | pending | frontend | – |
-| M3-FE-02 | EDA | FE | Per-column drilldown | pending | frontend | – |
-| M3-FE-03 | EDA | FE | Responsive container | pending | frontend | – |
-| M2-FE-01 | Preprocessing | FE | Pipeline builder UI | pending | frontend | – |
-| M2-FE-02 | Preprocessing | FE | Run pipeline + audit | pending | frontend | – |
-| M2-FE-03 | Preprocessing | FE | Pipeline log viewer | pending | frontend | – |
+| M3-FE-01 | EDA | FE | EDA page renders charts | in_review | frontend | `65d4647` |
+| M3-FE-02 | EDA | FE | Per-column drilldown | in_review | frontend | `65d4647` |
+| M3-FE-03 | EDA | FE | Responsive container | in_review | frontend | `65d4647` |
+| M2-FE-01 | Preprocessing | FE | Pipeline builder UI | in_review | frontend | `5c83663` |
+| M2-FE-02 | Preprocessing | FE | Run pipeline + audit | in_review | frontend | `5c83663` |
+| M2-FE-03 | Preprocessing | FE | Pipeline log viewer | in_review | frontend | `5c83663` |
 
 ## Sprint 3 — AutoML (M4)
 
