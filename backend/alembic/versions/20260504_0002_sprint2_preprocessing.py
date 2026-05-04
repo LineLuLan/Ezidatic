@@ -4,6 +4,8 @@ Revision ID: 0002
 Revises: 0001
 Create Date: 2026-05-04
 
+Cross-DB: ``params`` uses sa.JSON with a Postgres JSONB variant so
+``alembic upgrade head`` runs against both Postgres and SQLite.
 """
 from typing import Sequence, Union
 
@@ -17,6 +19,12 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _json() -> sa.types.TypeEngine:
+    return sa.JSON().with_variant(
+        postgresql.JSONB(astext_type=sa.Text()), "postgresql"
+    )
+
+
 def upgrade() -> None:
     op.add_column(
         "datasets",
@@ -24,14 +32,14 @@ def upgrade() -> None:
     )
     op.add_column(
         "pipeline_logs",
-        sa.Column(
-            "params",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-        ),
+        sa.Column("params", _json(), nullable=True),
     )
 
 
 def downgrade() -> None:
-    op.drop_column("pipeline_logs", "params")
-    op.drop_column("datasets", "preprocessed_storage_path")
+    # SQLite cannot drop columns before 3.35; in dev with SQLite we'd
+    # nuke the file and re-upgrade. Postgres handles drop_column natively.
+    with op.batch_alter_table("pipeline_logs") as batch_op:
+        batch_op.drop_column("params")
+    with op.batch_alter_table("datasets") as batch_op:
+        batch_op.drop_column("preprocessed_storage_path")
