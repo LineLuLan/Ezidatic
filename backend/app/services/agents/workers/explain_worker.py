@@ -18,4 +18,4 @@ async def explain_worker(question: str, context: str, llm: LLMAdapter) -> str:
         },
         {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"},
     ]
-    return await llm.invoke(messages)
+    return (await llm.invoke(messages)).content

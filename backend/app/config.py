@@ -36,11 +36,11 @@ class Settings(BaseSettings):
     groq_router_model: str = "llama-3.1-8b-instant"
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
-    gemini_embed_model: str = "text-embedding-004"
+    gemini_model: str = "gemini-2.5-flash-lite"
+    gemini_embed_model: str = "gemini-embedding-001"
 
     openrouter_api_key: str | None = None
-    openrouter_model: str = "meta-llama/llama-3.3-70b-instruct:free"
+    openrouter_model: str = "z-ai/glm-4.5-air:free"
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"

@@ -20,8 +20,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 3 merge) | Integration. Sprint 1 + 2 + 3 BE + FE merged. |
-| `backend` | `7e9a742` | Sprint 3 BE merged into develop. Ready for Sprint 4. |
-| `frontend` | `5430b67` | Sprint 3 FE merged into develop. Ready for Sprint 4. |
+| `backend` | `6d53061` | Sprint 4 BE complete (M5 chat). In review. |
+| `frontend` | `5430b67` | Sprint 3 FE merged into develop. Ready for Sprint 4 FE. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -89,14 +89,14 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M5-BE-01 | Chat | BE | Gemini/OpenRouter/Ollama providers | pending | backend | – |
-| M5-BE-02 | Chat | BE | Verify fallback under failure | pending | backend | – |
-| M5-BE-03 | Chat | BE | Router classification | pending | backend | – |
-| M5-BE-04 | Chat | BE | sql_worker + explain_worker | pending | backend | – |
-| M5-BE-05 | Chat | BE | query_dataset + plot_chart tools | pending | backend | – |
-| M5-BE-06 | Chat | BE | Create session endpoint | pending | backend | – |
-| M5-BE-07 | Chat | BE | Stream messages SSE | pending | backend | – |
-| M5-BE-08 | Chat | BE | Token usage + provider persisted | pending | backend | – |
+| M5-BE-01 | Chat | BE | Gemini/OpenRouter/Ollama providers | in_review | backend | `d2d1bb1` |
+| M5-BE-02 | Chat | BE | Verify fallback under failure | in_review | backend | `6d53061` |
+| M5-BE-03 | Chat | BE | Router classification | in_review | backend | `3e5718a` |
+| M5-BE-04 | Chat | BE | sql_worker + explain_worker | in_review | backend | `964520a` |
+| M5-BE-05 | Chat | BE | query_dataset + plot_chart tools | in_review | backend | `964520a` |
+| M5-BE-06 | Chat | BE | Create session endpoint | in_review | backend | `7a7cb2f` |
+| M5-BE-07 | Chat | BE | Stream messages SSE | in_review | backend | `7a7cb2f` |
+| M5-BE-08 | Chat | BE | Token usage + provider persisted | in_review | backend | `7a7cb2f` |
 | M5-FE-01 | Chat | FE | SSE chat input | pending | frontend | – |
 | M5-FE-02 | Chat | FE | MessageList streaming | pending | frontend | – |
 | M5-FE-03 | Chat | FE | Provider badge | pending | frontend | – |

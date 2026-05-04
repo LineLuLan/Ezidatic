@@ -228,7 +228,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 3
+### What the suite covers as of Sprint 4
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -239,6 +239,7 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
 | `tests/test_ml.py` | 7 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload |
+| `tests/test_chat.py` | 10 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404 |
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -409,7 +410,52 @@ primary metric (accuracy / r2), saves the winner via joblib at
 per leaderboard entry (the winner gets `artifact_path`). Non-numeric
 features are dropped — preprocess first via §7.5 to keep them.
 
-### 7.7 Same flow via Swagger UI
+### 7.7 Chat — sessions + SSE messages (Sprint 4)
+
+Requires at least one LLM provider key in `.env` (Groq is the
+recommended primary; Gemini is fallback #1; OpenRouter + Ollama are
+optional).
+
+```bash
+# Create a session, optionally bound to a dataset.
+SESSION_ID=$(curl -s -X POST "http://localhost:8000/api/v1/chat/sessions" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"title\":\"smoke\",\"dataset_id\":\"$DATASET_ID\"}" \
+  | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+echo "$SESSION_ID"
+
+# Stream a message. Use --no-buffer so curl flushes SSE chunks live.
+curl --no-buffer -N -X POST \
+  "http://localhost:8000/api/v1/chat/sessions/$SESSION_ID/messages" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"How many rows have salary > 50000?"}'
+
+# Inspect persisted history afterwards.
+curl -s "http://localhost:8000/api/v1/chat/sessions/$SESSION_ID/messages" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+SSE event protocol (one event per `data: <json>\n\n` line):
+- `{"type":"intent","value":"sql|ml|eda|explain|small_talk"}` — emitted
+  once after the router classifies.
+- `{"type":"delta","text":"..."}` — streamed content tokens.
+- `{"type":"tool_calls","data":[{...}]}` — emitted by sql_worker after
+  it runs `query_dataset`.
+- `{"type":"error","message":"..."}` — every provider failed or an
+  unhandled exception fired during dispatch.
+- `{"type":"done","content":"...","tool_calls":...,"provider_used":...,
+  "token_usage":...,"intent":...}` — final summary; assistant
+  ChatMessage persists from this payload.
+- `{"type":"saved"}` — assistant row committed.
+
+The user message persists synchronously before streaming starts, so a
+disconnect mid-stream still records the question. The chat picks the
+first available provider in `Groq → Gemini → OpenRouter → Ollama`
+order.
+
+### 7.8 Same flow via Swagger UI
 
 Open `http://localhost:8000/docs`, click **Authorize**, paste the JWT
 from §7.1, then exercise the routes from the UI. Easier than curl for
