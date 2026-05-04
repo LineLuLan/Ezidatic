@@ -20,8 +20,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 2 merge) | Integration. Sprint 1 + Sprint 2 BE + FE merged. |
-| `backend` | `3d637ab` | Sprint 2 BE merged into develop. Ready for Sprint 3. |
-| `frontend` | `5c83663` | Sprint 2 FE merged into develop. Ready for Sprint 3. |
+| `backend` | `7e9a742` | Sprint 3 BE complete (M4 AutoML) + SQLite-portable migrations. In review. |
+| `frontend` | `5c83663` | Sprint 2 FE merged into develop. Ready for Sprint 3 FE. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -73,13 +73,13 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M4-BE-01 | AutoML | BE | RandomForestClassifier | pending | backend | – |
-| M4-BE-02 | AutoML | BE | LogisticRegression | pending | backend | – |
-| M4-BE-03 | AutoML | BE | Regressor variants | pending | backend | – |
-| M4-BE-04 | AutoML | BE | POST /ml/train wired | pending | backend | – |
-| M4-BE-05 | AutoML | BE | Save model artifact | pending | backend | – |
-| M4-BE-06 | AutoML | BE | GET /ml/leaderboard/{id} | pending | backend | – |
-| M4-BE-07 | AutoML | BE | Background-task training | pending | backend | – |
+| M4-BE-01 | AutoML | BE | RandomForestClassifier | in_review | backend | `7e9a742` |
+| M4-BE-02 | AutoML | BE | LogisticRegression | in_review | backend | `7e9a742` |
+| M4-BE-03 | AutoML | BE | Regressor variants | in_review | backend | `7e9a742` |
+| M4-BE-04 | AutoML | BE | POST /ml/train wired | in_review | backend | `7e9a742` |
+| M4-BE-05 | AutoML | BE | Save model artifact | in_review | backend | `7e9a742` |
+| M4-BE-06 | AutoML | BE | GET /ml/leaderboard/{id} | in_review | backend | `7e9a742` |
+| M4-BE-07 | AutoML | BE | Background-task training | in_review | backend | `7e9a742` |
 | M4-FE-01 | AutoML | FE | Train form | pending | frontend | – |
 | M4-FE-02 | AutoML | FE | Leaderboard table | pending | frontend | – |
 | M4-FE-03 | AutoML | FE | Drawer with feature importance | pending | frontend | – |
@@ -117,3 +117,4 @@ Source of truth for "what's done / what's next" across both sides. Update
 | POL-05 | BE | Redis cache for LLM responses | pending |
 | POL-06 | FE | Dark mode + a11y pass | pending |
 | POL-07 | docs | Final report + slides | pending |
+| POL-08 | BE | SQLite-portable migrations (no-Docker dev path) | in_review (`658aa99`) |

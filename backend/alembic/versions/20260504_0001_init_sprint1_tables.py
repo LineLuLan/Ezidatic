@@ -4,6 +4,13 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-05-04
 
+Cross-DB notes:
+- UUID columns use ``sa.Uuid(as_uuid=True)`` — Postgres compiles to UUID,
+  SQLite stores as CHAR(32) hex. Both accept ``uuid.UUID`` round-trip.
+- JSON columns use ``sa.JSON().with_variant(postgresql.JSONB(...), "postgresql")``
+  so Postgres still gets JSONB while SQLite gets a plain JSON-encoded TEXT.
+- ``sa.true()`` and ``sa.func.now()`` server defaults compile correctly on
+  both dialects.
 """
 from typing import Sequence, Union
 
@@ -17,10 +24,20 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _uuid() -> sa.types.TypeEngine:
+    return sa.Uuid(as_uuid=True)
+
+
+def _json() -> sa.types.TypeEngine:
+    return sa.JSON().with_variant(
+        postgresql.JSONB(astext_type=sa.Text()), "postgresql"
+    )
+
+
 def upgrade() -> None:
     op.create_table(
         "users",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", _uuid(), primary_key=True),
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("password_hash", sa.String(length=255), nullable=True),
         sa.Column("role", sa.String(length=32), nullable=False, server_default="user"),
@@ -36,8 +53,8 @@ def upgrade() -> None:
 
     op.create_table(
         "workspaces",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("owner_id", _uuid(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column(
             "created_at",
@@ -56,8 +73,8 @@ def upgrade() -> None:
 
     op.create_table(
         "datasets",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("workspace_id", _uuid(), nullable=False),
         sa.Column("original_name", sa.String(length=512), nullable=False),
         sa.Column("storage_path", sa.String(length=1024), nullable=False),
         sa.Column("file_size", sa.BigInteger(), nullable=True),
@@ -67,7 +84,7 @@ def upgrade() -> None:
         ),
         sa.Column("row_count", sa.Integer(), nullable=True),
         sa.Column("column_count", sa.Integer(), nullable=True),
-        sa.Column("profile", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("profile", _json(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -85,8 +102,8 @@ def upgrade() -> None:
 
     op.create_table(
         "dataset_columns",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("dataset_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("dataset_id", _uuid(), nullable=False),
         sa.Column("column_name", sa.String(length=255), nullable=False),
         sa.Column("data_type", sa.String(length=64), nullable=False),
         sa.Column(
@@ -94,10 +111,8 @@ def upgrade() -> None:
         ),
         sa.Column("null_count", sa.Integer(), nullable=True),
         sa.Column("unique_count", sa.Integer(), nullable=True),
-        sa.Column(
-            "sample_values", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
-        sa.Column("stats", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("sample_values", _json(), nullable=True),
+        sa.Column("stats", _json(), nullable=True),
         sa.ForeignKeyConstraint(
             ["dataset_id"],
             ["datasets.id"],
@@ -109,13 +124,11 @@ def upgrade() -> None:
 
     op.create_table(
         "pipeline_logs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("dataset_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("dataset_id", _uuid(), nullable=False),
         sa.Column("step_name", sa.String(length=128), nullable=False),
         sa.Column("step_order", sa.Integer(), nullable=False),
-        sa.Column(
-            "applied_changes", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("applied_changes", _json(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -133,15 +146,13 @@ def upgrade() -> None:
 
     op.create_table(
         "ml_experiments",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("dataset_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("dataset_id", _uuid(), nullable=False),
         sa.Column("target_column", sa.String(length=255), nullable=False),
         sa.Column("task_type", sa.String(length=32), nullable=False),
         sa.Column("model_type", sa.String(length=64), nullable=False),
-        sa.Column("metrics", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column(
-            "hyperparams", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("metrics", _json(), nullable=True),
+        sa.Column("hyperparams", _json(), nullable=True),
         sa.Column("artifact_path", sa.String(length=1024), nullable=True),
         sa.Column(
             "created_at",
@@ -160,9 +171,9 @@ def upgrade() -> None:
 
     op.create_table(
         "chat_sessions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("dataset_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("workspace_id", _uuid(), nullable=False),
+        sa.Column("dataset_id", _uuid(), nullable=True),
         sa.Column("title", sa.String(length=255), nullable=True),
         sa.Column(
             "created_at",
@@ -187,14 +198,12 @@ def upgrade() -> None:
 
     op.create_table(
         "chat_messages",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _uuid(), primary_key=True),
+        sa.Column("session_id", _uuid(), nullable=False),
         sa.Column("role", sa.String(length=32), nullable=False),
         sa.Column("content", sa.Text(), nullable=True),
-        sa.Column("tool_calls", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column(
-            "token_usage", postgresql.JSONB(astext_type=sa.Text()), nullable=True
-        ),
+        sa.Column("tool_calls", _json(), nullable=True),
+        sa.Column("token_usage", _json(), nullable=True),
         sa.Column("provider_used", sa.String(length=64), nullable=True),
         sa.Column(
             "created_at",

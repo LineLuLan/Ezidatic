@@ -115,9 +115,33 @@ cp .env.local.example .env.local
 
 ## 4. Run the dev environment
 
-You usually want three terminals: Docker, backend, frontend.
+You have two paths: **Quick path (SQLite, no Docker)** for solo dev, or
+**Full path (Docker + Postgres + Redis + Chroma)** for the full stack
+(needed for chat/vector features in Sprint 4).
 
-### 4.1 Start the dev databases
+### 4.1 Quick path: SQLite (no Docker)
+
+Migrations are cross-DB since the SQLite-portable rewrite. Set the URL
+in `backend/.env` or export it ad-hoc:
+
+```bash
+cd backend
+mkdir -p data
+export DATABASE_URL='sqlite+aiosqlite:///./data/dev.db'   # Git Bash
+# PowerShell: $env:DATABASE_URL='sqlite+aiosqlite:///./data/dev.db'
+alembic upgrade head     # creates dev.db with all 8 tables
+uvicorn app.main:app --reload --port 8000
+```
+
+Notes:
+- UUIDs are stored as CHAR(32) hex on SQLite; JSONB columns become plain
+  JSON. Round-trip-equivalent for everything in Sprint 1–3.
+- Vector store / Redis are not exercised by Sprint 1–3 endpoints, so
+  this path is enough for auth + ingestion + EDA + preprocessing +
+  AutoML.
+- To reset: `rm backend/data/dev.db && alembic upgrade head`.
+
+### 4.2 Full path: Docker (Postgres + Redis + Chroma)
 
 From the repo root:
 
@@ -138,14 +162,14 @@ docker compose ps
 docker compose logs -f postgres   # ctrl+c to stop tailing
 ```
 
-### 4.2 Apply migrations
+### 4.3 Apply migrations (Postgres)
 
 ```bash
 cd backend
 alembic upgrade head
 ```
 
-You should see `0001_init` applied. To reset the DB:
+You should see `0001` then `0002` applied. To reset the DB:
 
 ```bash
 docker compose down -v   # nukes the postgres volume
@@ -153,7 +177,7 @@ docker compose up -d postgres
 alembic upgrade head
 ```
 
-### 4.3 Run the backend
+### 4.4 Run the backend
 
 ```bash
 uvicorn app.main:app --reload --port 8000
@@ -164,7 +188,7 @@ Open:
 - `http://localhost:8000/health` → `{"status":"ok",…}`
 - `http://localhost:8000/docs` → interactive OpenAPI for every route.
 
-### 4.4 Run the frontend
+### 4.5 Run the frontend
 
 In another terminal:
 
@@ -204,7 +228,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 2
+### What the suite covers as of Sprint 3
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -214,6 +238,7 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
 | `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
+| `tests/test_ml.py` | 7 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload |
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -349,7 +374,42 @@ row per step (with both `params` and `applied_changes`). After a
 preprocessing run, `GET /eda/{id}/charts` reads from the preprocessed
 file instead of the raw upload.
 
-### 7.6 Same flow via Swagger UI
+### 7.6 AutoML — train + leaderboard (Sprint 3)
+
+```bash
+# Synchronous: returns the full leaderboard inline
+curl -s -X POST "http://localhost:8000/api/v1/ml/train" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"dataset_id\": \"$DATASET_ID\",
+    \"target_column\": \"species\",
+    \"task_type\": \"classification\"
+  }" | python -m json.tool
+
+# Background: queues + returns immediately. Poll /leaderboard.
+curl -s -X POST "http://localhost:8000/api/v1/ml/train" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"dataset_id\": \"$DATASET_ID\",
+    \"target_column\": \"species\",
+    \"task_type\": \"classification\",
+    \"background\": true
+  }" | python -m json.tool
+
+curl -s "http://localhost:8000/api/v1/ml/leaderboard/$DATASET_ID" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+`POST /train` runs every estimator registered for the requested
+`task_type` (3 classifiers / 2 regressors as of Sprint 3), sorts by the
+primary metric (accuracy / r2), saves the winner via joblib at
+`<storage>/models/{id}_{name}.joblib`, and persists one `MlExperiment`
+per leaderboard entry (the winner gets `artifact_path`). Non-numeric
+features are dropped — preprocess first via §7.5 to keep them.
+
+### 7.7 Same flow via Swagger UI
 
 Open `http://localhost:8000/docs`, click **Authorize**, paste the JWT
 from §7.1, then exercise the routes from the UI. Easier than curl for
