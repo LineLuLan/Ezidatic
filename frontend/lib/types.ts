@@ -56,6 +56,29 @@ export interface Dataset {
   created_at: string;
 }
 
+export interface PipelineLog {
+  id: string;
+  dataset_id: string;
+  step_name: string;
+  step_order: number;
+  params: Record<string, unknown> | null;
+  applied_changes: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface StepRequest {
+  step: string;
+  params: Record<string, unknown>;
+}
+
+export interface PreprocessingRunResponse {
+  dataset_id: string;
+  transformed_path: string;
+  row_count: number;
+  column_count: number;
+  logs: PipelineLog[];
+}
+
 export type ChatRole = "user" | "assistant" | "tool" | "system";
 
 export interface ChatMessage {

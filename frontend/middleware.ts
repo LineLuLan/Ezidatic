@@ -1,6 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PREFIXES = ["/datasets", "/eda", "/ml", "/chat"];
+const PROTECTED_PREFIXES = [
+  "/datasets",
+  "/eda",
+  "/preprocessing",
+  "/ml",
+  "/chat",
+];
 const AUTH_PREFIXES = ["/login", "/register"];
 const TOKEN_COOKIE = "ezidatic_token";
 

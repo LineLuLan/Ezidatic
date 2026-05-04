@@ -2,9 +2,10 @@ import Link from "next/link";
 
 const NAV = [
   { href: "/datasets", label: "Datasets" },
-  { href: "/eda/_", label: "EDA" },
-  { href: "/ml/_", label: "AutoML" },
-  { href: "/chat/_", label: "Chat" },
+  { href: "/datasets", label: "EDA", hint: "Pick a dataset" },
+  { href: "/datasets", label: "Preprocessing", hint: "Pick a dataset" },
+  { href: "/datasets", label: "AutoML", hint: "Pick a dataset" },
+  { href: "/datasets", label: "Chat", hint: "Pick a dataset" },
 ];
 
 export default function DashboardLayout({
@@ -17,11 +18,12 @@ export default function DashboardLayout({
       <aside className="w-56 border-r bg-muted/40 p-4">
         <div className="mb-6 text-lg font-semibold">Ezidatic</div>
         <nav className="space-y-1">
-          {NAV.map((item) => (
+          {NAV.map((item, idx) => (
             <Link
-              key={item.href}
+              key={`${item.label}-${idx}`}
               href={item.href}
               className="block rounded-md px-3 py-2 text-sm hover:bg-accent"
+              title={item.hint}
             >
               {item.label}
             </Link>

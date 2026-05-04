@@ -5,6 +5,31 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 8: Sprint 2 merged to develop (BE + FE)
+
+- **Branch**: `develop` — merged `backend` (Session 6) then `frontend`
+  (Session 7) one after the other. Auth-cookie-not-HttpOnly deviation
+  unchanged; SQLite-runtime portability still pending.
+- **Done**: All 13 Sprint 2 task IDs flipped to `done` in TRACKING (7 BE
+  + 6 FE). Active branches table updated. Conflicts on TRACKING + HANDOFF
+  resolved per RULES §4 ("keep both sets") — backend rows kept from
+  HEAD, frontend rows added underneath.
+- **State**: working tree clean. `pytest` 26/26, `pnpm typecheck` +
+  `pnpm build` clean (verified pre-merge on the side branches).
+- **Next session start**: Sprint 3 (M4 AutoML). BE first on `backend`:
+  M4-BE-01..07 (RandomForest, LogisticRegression, regressor variants,
+  POST /ml/train, model artifact persistence, GET /ml/leaderboard,
+  background-task training). FE on `frontend`: M4-FE-01..04 (train form,
+  leaderboard table, drawer with feature importance, polling). Read
+  `docs/modules/M4_AUTOML.md` first.
+- **Blockers**: Manual E2E browser smoke still requires BE running.
+  Sprint 3 BE work is self-contained (sklearn + lightgbm already in
+  `backend/requirements.txt`); no new external API keys needed yet.
+  Sprint 4 chat is when LLM provider keys become required.
+- **Tests at session end**: 26/26 pytest, FE typecheck/build clean.
+
+---
+
 ## 2026-05-04 — Session 6: Sprint 2 BE complete (EDA + preprocessing)
 
 - **Branch**: `backend` — 5 commits on top of `4e620ea` (which was the
@@ -70,6 +95,78 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
   - One-hot via Polars `to_dummies` does not implement a `drop_first`
     option; AutoML (Sprint 3) will need to handle the resulting
     multi-collinearity if present.
+
+---
+
+## 2026-05-04 — Session 7: Sprint 2 FE complete (EDA page + preprocessing builder)
+
+- **Branch**: `frontend` — 3 commits on top of `4e620ea` (develop tip
+  after Session 5). Note: this branch does **not** carry Sprint 2 BE; the
+  BE endpoints live on `backend` (Session 6) and aren't merged to
+  develop yet. Sprint 2 FE compiles and types check against the shared
+  types, but full E2E browser smoke needs the user to merge backend →
+  develop and run the BE.
+- **Done** (all 6 Sprint 2 FE task IDs flipped to `in_review` in TRACKING):
+  - **Nav + CTAs** — `4f9a949`. `middleware.ts` adds `/preprocessing`
+    to PROTECTED_PREFIXES. The dashboard sidebar's broken `/eda/_`
+    placeholders now route to `/datasets` with section labels (EDA,
+    Preprocessing, AutoML, Chat) — the user picks a dataset first, then
+    drills in. `DatasetCard` lost its outer Link (it nested anchors when
+    we added action buttons); title still links to detail, and a footer
+    row exposes EDA, Preprocess, and Detail buttons per card.
+  - **EDA page (M3-FE-01..03)** — `65d4647`. New `lib/hooks/useEda.ts`
+    (useEdaProfile + useEdaCharts) and Sprint 2 type additions in
+    `lib/types.ts`. `components/charts/adapters/recharts.tsx` ships a
+    real heatmap renderer (square correlation grid; positive
+    correlations red, negative blue, alpha = |value|, null cells render
+    "—" on faint gray). `ColumnTable` gained optional `onSelect` +
+    `selectedName` (still backwards-compatible for the Sprint 1 detail
+    page). `app/(dashboard)/eda/[id]/page.tsx` replaced its stub with a
+    full layout: stats card → clickable column list → drilldown
+    spotlight that matches a chart by axis label/title → full charts
+    grid (`lg:grid-cols-2`). M3-FE-03 responsive container is handled
+    by recharts' existing `ResponsiveContainer` plus the page grid.
+  - **Preprocessing page (M2-FE-01..03)** — `5c83663`. New
+    `lib/hooks/usePreprocessing.ts` (`usePipelineLogs` + `useRunPipeline`;
+    on success invalidates `["eda", id]` and `["datasets", id]` so EDA
+    re-renders against the preprocessed CSV). New `components/preprocessing/`
+    with `StepEditor` (step-name select bound to KNOWN_STEPS, JSON
+    params textarea with live parse-error display) + `LogViewer` (table
+    of all PipelineLog rows with pretty-printed JSON cells). New
+    `app/(dashboard)/preprocessing/[id]/page.tsx`: linear chain (Add /
+    Remove / Run), success Alert showing transformed_path + row/column
+    count, audit log section below.
+- **Tests / verification**: `pnpm typecheck` clean. `pnpm build`
+  produces 10 routes. Notable sizes: `/eda/[id]` 106 kB / 215 kB FLJS
+  (recharts heavy), `/preprocessing/[id]` 6.09 kB / 116 kB,
+  `/datasets` 4.71 kB. Middleware 25.8 kB.
+- **Next session start**: User reviews + merges `backend` → `develop`
+  first, then `frontend` → `develop` (or merges develop → frontend to
+  E2E smoke). After both Sprint 2 sides are integrated, **Sprint 3
+  (M4 AutoML)** kicks off: M4-BE-01..07 on `backend` (RandomForest,
+  LogisticRegression, regressor variants, POST /ml/train, model
+  artifacts, GET /ml/leaderboard, background-task training) and
+  M4-FE-01..04 on `frontend` (train form, leaderboard table, drawer with
+  feature importance, polling). Read `docs/modules/M4_AUTOML.md` next.
+- **Blockers**: Manual E2E browser smoke still needs BE running. To do
+  it without Docker, follow the SQLite-runtime polish task once it
+  lands; otherwise spin up Postgres or any reachable Postgres + apply
+  migrations 0001 and 0002.
+- **Notes**:
+  - The drilldown matcher in `EdaPage` walks `spec.x_axis.label`,
+    `spec.y_axis.label`, and `spec.title` to find the chart for a
+    selected column. It intentionally returns `null` for heatmaps —
+    those render at the page level, not per column.
+  - `KNOWN_STEPS` in `StepEditor.tsx` is the only FE place that knows
+    the step name → default-params mapping. If the BE registry adds a
+    new step, add it here in the same commit (RULES §2 cross-side
+    rule).
+  - Heatmap colors are inline RGBA strings, not Tailwind classes,
+    because Tailwind purges unknown classes at build time. The renderer
+    sits inside `adapters/recharts.tsx`; swapping to ECharts later only
+    re-implements `renderHeatmap()` in the new adapter file.
+  - The auth cookie remains intentionally NOT HttpOnly — same Sprint 1
+    deviation, still tracked in `ARCHITECTURE.md` Deviations.
 
 ---
 
