@@ -119,12 +119,45 @@ export interface ExperimentOut {
 
 export type ChatRole = "user" | "assistant" | "tool" | "system";
 
+export type ChatIntent = "sql" | "ml" | "eda" | "explain" | "small_talk";
+
+export interface ChatSession {
+  id: string;
+  title: string | null;
+  dataset_id: string | null;
+  created_at: string;
+}
+
+export interface ChatToolCall {
+  name: string;
+  args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  error?: string;
+  provider?: string;
+}
+
 export interface ChatMessage {
   id: string;
   session_id: string;
   role: ChatRole;
   content: string | null;
-  tool_calls?: Record<string, unknown>[];
+  tool_calls?: ChatToolCall[] | null;
+  token_usage?: Record<string, unknown> | null;
   provider_used?: string | null;
   created_at: string;
 }
+
+export type ChatStreamEvent =
+  | { type: "intent"; value: ChatIntent }
+  | { type: "delta"; text: string }
+  | { type: "tool_calls"; data: ChatToolCall[] }
+  | {
+      type: "done";
+      content: string;
+      tool_calls: ChatToolCall[];
+      provider_used: string | null;
+      token_usage: Record<string, unknown> | null;
+      intent: ChatIntent;
+    }
+  | { type: "saved" }
+  | { type: "error"; message: string };
