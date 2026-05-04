@@ -29,5 +29,5 @@ async def route(question: str, llm: LLMAdapter) -> QueryType:
         model_override=settings.groq_router_model,
         response_format={"type": "json_object"},
     )
-    parsed = json.loads(response)
+    parsed = json.loads(response.content)
     return QueryType(parsed["type"])
