@@ -5,6 +5,44 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 14: Sprint 4 merged to develop (BE + FE) — feature-complete
+
+- **Branch**: `develop` — merged `backend` (Session 12 commits + docs
+  `a42c9b4`) and `frontend` (Session 13 — `21449d7` + docs `0225efc`)
+  one after the other. Conflicts on TRACKING + HANDOFF resolved per
+  RULES §4 ("keep both sets") — backend rows kept from HEAD, frontend
+  rows added underneath.
+- **Done**: All 14 Sprint 4 task IDs (8 BE + 6 FE) flipped to `done`
+  in TRACKING. **Every blueprint feature module is now `done`**:
+  M0 Auth, M1 Ingestion, M2 Preprocessing, M3 EDA, M4 AutoML, M5 Chat.
+  POL-08 (SQLite-portable migrations) stays as `in_review` in the
+  Polish section.
+- **State**: working tree clean. `pytest` 43/43 (43 BE tests across 8
+  files), `pnpm typecheck` + `pnpm build` clean (verified pre-merge).
+  10 frontend routes including `/chat/[sessionId]` (3.41 kB / 220 kB
+  FLJS).
+- **Next session start**: User performs **E2E browser smoke** per
+  WALKTHROUGH §7. Quick path:
+    cd backend
+    export DATABASE_URL='sqlite+aiosqlite:///./data/dev.db'
+    mkdir -p data && alembic upgrade head
+    uvicorn app.main:app --reload --port 8000
+  Then in another tab:
+    cd frontend && pnpm dev
+  Open http://localhost:3000, register, upload a CSV, exercise EDA →
+  Preprocess → AutoML → Chat in order. WALKTHROUGH §§7.1–7.7 cover
+  each step.
+- **After E2E**: remaining work is Polish (POL-01..07). Highest impact:
+  POL-02 GitHub Actions CI (so future PRs auto-run pytest + pnpm
+  build), POL-05 Redis cache for LLM responses (cuts free-tier token
+  usage), POL-03 Render+Vercel+Supabase deploy.
+- **Blockers**: None for E2E. OpenRouter SSL caveat from Session 12
+  is still environment-specific; the fallback chain skips it cleanly
+  so chat works via Groq + Gemini.
+- **Tests at session end**: 43/43 pytest, FE typecheck/build clean.
+
+---
+
 ## 2026-05-04 — Session 12: Sprint 4 BE complete (M5 Agentic Chat)
 
 - **Branch**: `backend` — 5 commits on top of `70d6458` (develop tip
@@ -89,6 +127,74 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
     sql_worker prompt tells the LLM about that table only. If we ever
     expose multiple datasets per session, give each a different
     SQLContext key.
+
+---
+
+## 2026-05-04 — Session 13: Sprint 4 FE complete (chat UI)
+
+- **Branch**: `frontend` — 1 commit (`21449d7`) on top of `70d6458`
+  (develop tip after Sprint 3 merge). Note: this branch does NOT carry
+  Sprint 4 BE — that lives on `backend` (Session 12 commits +
+  `a42c9b4` docs). Both sides are `in_review` waiting for user merge.
+- **Done** (all 6 Sprint 4 FE task IDs `in_review`):
+  - **M5-FE-01..06** chat UI:
+    - `lib/types.ts` mirror types — ChatSession, ChatToolCall,
+      ChatStreamEvent (discriminated union over the SSE protocol).
+    - `lib/sse.ts` — async generator that splits the response stream
+      on `\n\n` and yields parsed `data: <json>` lines. Tolerates
+      malformed lines so a flaky chunk doesn't kill the whole stream.
+    - `lib/hooks/useChat.ts` — useChatSessions / useCreateChatSession
+      / useChatMessages (TanStack queries) + useSendChatMessage (a
+      bespoke streaming hook because TanStack's useMutation doesn't
+      fit SSE). Drives a StreamingState ({active, intent, text,
+      toolCalls, providerUsed, tokenUsage, error}); on `saved` event
+      it invalidates the messages query.
+    - `components/chat/{ChatInput,MessageBubble,MessageList,
+      ProviderBadge,SessionSidebar,ToolCallView}.tsx` — provider
+      badge color-codes by name (groq=orange, gemini=blue, …);
+      ToolCallView special-cases `plot_chart` results, validating
+      them as ChartSpec and rendering inline via the existing
+      ChartRenderer.
+    - `app/(dashboard)/chat/page.tsx` — sessions index. Wrapped in
+      <Suspense> because `useSearchParams()` requires it under static
+      prerender. Auto-creates a session and redirects when arriving
+      with `?dataset_id=...` so the DatasetCard "Chat" CTA flows
+      naturally.
+    - `app/(dashboard)/chat/[sessionId]/page.tsx` — main chat view:
+      sidebar + history + streaming bubble + input.
+    - `DatasetCard` adds two new CTAs: AutoML + Chat (the latter
+      points at `/chat?dataset_id={id}`). All four feature flows now
+      launch from the dataset card.
+- **Tests / verification**: `pnpm typecheck` clean. `pnpm build` clean.
+  Routes: `/chat` 1.09 kB / 108 kB FLJS, `/chat/[sessionId]` 3.41 kB /
+  220 kB FLJS (recharts pulled in for the inline plot_chart
+  rendering).
+- **Next session start**: User merges `backend` → `develop` (brings in
+  Sprint 4 BE chat endpoints + provider chain + workers + tools +
+  WALKTHROUGH §7.7), then `frontend` → `develop` (this Session 13
+  commit). After both merge, **E2E smoke** per WALKTHROUGH §7.7 — set
+  `DATABASE_URL=sqlite+aiosqlite:///./data/dev.db`, `alembic upgrade
+  head`, run uvicorn + `pnpm dev`, register, upload a CSV, click
+  Chat on the DatasetCard, ask "How many rows have salary > 50000?"
+  and confirm streaming + tool_call + provider_used in the
+  /chat/[id] page.
+- **Blockers**: None on the FE side. BE Session 12 already verified
+  Groq + Gemini keys live; OpenRouter has an environment-specific SSL
+  caveat that the fallback chain handles transparently.
+- **Notes**:
+  - The streaming hook keeps an optimistic user message in the cache
+    while the SSE stream runs. On `saved` it invalidates and the
+    cache picks up both rows from the BE — the optimistic copy is
+    naturally replaced.
+  - `useSearchParams()` in `chat/page.tsx` MUST stay inside a
+    `<Suspense>` boundary or the static prerender step throws. Don't
+    flatten unless the page becomes server-component-only.
+  - ToolCallView is the single place that decides whether a tool
+    result renders inline as a chart vs. a JSON dump. Future tools
+    that emit non-ChartSpec rich UIs should add a branch there.
+  - The chat UI deliberately has no chart for sql_worker results —
+    the BE summary text already cites the SQL + result preview, so
+    the FE keeps the bubble compact.
 
 ---
 

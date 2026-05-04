@@ -51,6 +51,18 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
             Preprocess
           </Link>
           <Link
+            href={`/ml/${dataset.id}`}
+            className="rounded-md border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent"
+          >
+            AutoML
+          </Link>
+          <Link
+            href={`/chat?dataset_id=${dataset.id}`}
+            className="rounded-md border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent"
+          >
+            Chat
+          </Link>
+          <Link
             href={`/datasets/${dataset.id}`}
             className="ml-auto rounded-md border bg-background px-2.5 py-1 text-xs font-medium hover:bg-accent"
           >
