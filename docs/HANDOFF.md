@@ -5,6 +5,74 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 6: Sprint 2 BE complete (EDA + preprocessing)
+
+- **Branch**: `backend` — 5 commits on top of `4e620ea` (which was the
+  develop tip after Sprint 1 was merged in Session 4).
+- **Done** (all 7 Sprint 2 BE task IDs flipped to `in_review` in TRACKING):
+  - **Migration 0002 + model fields** — `8dae0ef`. `Dataset.preprocessed_storage_path`
+    (String 1024 nullable) + `PipelineLog.params` (JSON / JSONB on Postgres).
+    Added `LocalStorage.path_for_preprocessed(dataset_id)` → `{id}_pp.csv`.
+    Sprint 1 tests still 17/17 green.
+  - **EDA helpers + endpoints (M3-BE-01..03)** — `6d84b6e`. `scatter_spec` +
+    `heatmap_spec` (Pearson via pandas round-trip; Polars lacks full-matrix
+    corr). `_clean()` replaces NaN/Inf with None for Pydantic + JSON. Endpoints
+    `GET /eda/{id}/profile` (returns cached `Dataset.profile`, recomputes if
+    None) + `GET /eda/{id}/charts` (auto-picks histogram per numeric, bar for
+    categorical with cardinality ≤ 50, one heatmap when ≥ 2 numerics; reads
+    from `preprocessed_storage_path` when set).
+  - **Preprocessing steps + registry (M2-BE-01..02)** — `d72dff5`.
+    `RemoveOutliers` (IQR Tukey-fence, configurable `iqr_factor`) and
+    `EncodeCategorical` (`one_hot` via `to_dummies` or `label` via Categorical
+    physical codes). `steps/__init__.py` is now a real registry surface:
+    `STEP_REGISTRY` dict + `build_step(name, params)` raising
+    `ValidationError("unknown_step")` on miss.
+  - **Preprocessing endpoints (M2-BE-03..04)** — `baaadfa`. `POST
+    /preprocessing/{id}/run` validates non-empty step list, loads df via
+    ParserRegistry, runs `Pipeline`, writes transformed CSV to
+    `path_for_preprocessed`, persists one `PipelineLog` per step (1-indexed
+    `step_order`, both `params` and `applied_changes` populated). `GET
+    /preprocessing/{id}/logs` ordered by `created_at` then `step_order` so
+    multiple runs read in insertion order. Wired into `api/v1/__init__.py`.
+  - **Tests** — `3d637ab`. `tests/test_eda.py` (4 cases) + `tests/test_preprocessing.py`
+    (5 cases). Suite now 26/26 (Sprint 1: 17 + Sprint 2: 9). NaN-cleansing
+    asserted via no `"NaN"`/`"Infinity"` substring in response text + null
+    cells in heatmap for constant columns. Registry extensibility test
+    registers a runtime-only `Dummy` step and resolves through `build_step`.
+  - **WALKTHROUGH** — bumped §5 test table to Sprint 2 totals; added §7.4
+    (EDA smoke) + §7.5 (preprocessing smoke) curl recipes; renumbered the
+    Swagger section to §7.6.
+- **Tests at session end**: `pytest -q` → **26 passed in 11.42s**.
+- **Next session start**: User reviews + merges `backend` → `develop`.
+  Then **Sprint 2 FE** on `frontend`: M3-FE-01..03 (EDA charts page +
+  per-column drilldown + responsive container) and M2-FE-01..03 (pipeline
+  builder + run + log viewer). Read `docs/modules/M3_EDA_CHARTS.md` and
+  `docs/modules/M2_PREPROCESSING.md`. The FE skeleton already has
+  `ChartRenderer` + `recharts` adapter (histogram/bar/line/scatter wired,
+  heatmap/pie are TODO fallback) — Sprint 2 FE includes shipping the
+  heatmap renderer alongside the page.
+- **Blockers**: Manual E2E browser smoke still needs BE running (no Docker
+  per user). The SQLite-runtime polish task is still pending; tests don't
+  hit it because they go through `Base.metadata.create_all`. Migration 0002
+  follows Sprint 1 style (Postgres-only types) so SQLite-portable migrations
+  remain a future single Polish task that touches both 0001 and 0002.
+- **Notes**:
+  - `Pipeline.run()` returns `(df, list[dict])` and does NOT persist the
+    audit log — the endpoint is the only place where `PipelineLog` rows are
+    written. Keep that boundary if Pipeline is ever called from a
+    background task.
+  - `step_order` is 1-indexed *per request*. Two consecutive runs both
+    create a `step_order=1` row; ordering across runs is captured by
+    `created_at`. The `GET /logs` endpoint sorts by both.
+  - Heatmap cells with NaN correlations (constant column ↔ anything) come
+    back as `value: null`, not the string `"NaN"` — verified in
+    `test_charts_handle_constant_column_without_nan`.
+  - One-hot via Polars `to_dummies` does not implement a `drop_first`
+    option; AutoML (Sprint 3) will need to handle the resulting
+    multi-collinearity if present.
+
+---
+
 ## 2026-05-04 — Session 5 (close): manual FE smoke checklist
 
 - **Branch**: `develop` (no code change). Session ended after Sprint 1

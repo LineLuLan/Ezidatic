@@ -204,7 +204,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 1
+### What the suite covers as of Sprint 2
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -212,6 +212,8 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_auth.py` | 5 | Register, dup-email, login, wrong password, unknown email |
 | `tests/test_datasets.py` | 6 | Upload, format reject, auth required, list, detail, x-workspace 404 |
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
+| `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
+| `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -308,7 +310,46 @@ curl -s "http://localhost:8000/api/v1/datasets/$DATASET_ID" \
 
 The detail response carries the full per-column profile.
 
-### 7.4 Same flow via Swagger UI
+### 7.4 EDA — profile + charts (Sprint 2)
+
+```bash
+curl -s "http://localhost:8000/api/v1/eda/$DATASET_ID/profile" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+
+curl -s "http://localhost:8000/api/v1/eda/$DATASET_ID/charts" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+`/profile` returns the cached `DatasetProfile` JSON. `/charts` returns a
+list of `ChartSpec`s — one histogram per numeric column, one bar per
+categorical column with cardinality ≤ 50, plus one heatmap when at
+least two numeric columns exist.
+
+### 7.5 Preprocessing — run + logs (Sprint 2)
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/preprocessing/$DATASET_ID/run" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "steps": [
+      {"step":"handle_missing","params":{"strategy":"mean"}},
+      {"step":"remove_outliers","params":{"iqr_factor":1.5}},
+      {"step":"encode_categorical","params":{"strategy":"one_hot"}}
+    ]
+  }' | python -m json.tool
+
+curl -s "http://localhost:8000/api/v1/preprocessing/$DATASET_ID/logs" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+`POST /run` writes the transformed file to `<storage>/<id>_pp.csv`,
+sets `Dataset.preprocessed_storage_path`, and persists one `PipelineLog`
+row per step (with both `params` and `applied_changes`). After a
+preprocessing run, `GET /eda/{id}/charts` reads from the preprocessed
+file instead of the raw upload.
+
+### 7.6 Same flow via Swagger UI
 
 Open `http://localhost:8000/docs`, click **Authorize**, paste the JWT
 from §7.1, then exercise the routes from the UI. Easier than curl for
