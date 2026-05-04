@@ -20,8 +20,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 3 merge) | Integration. Sprint 1 + 2 + 3 BE + FE merged. |
-| `backend` | `7e9a742` | Sprint 3 BE merged into develop. Ready for Sprint 4. |
-| `frontend` | `5430b67` | Sprint 3 FE merged into develop. Ready for Sprint 4. |
+| `backend` | (see backend TRACKING) | Sprint 4 BE in_review (M5 chat). |
+| `frontend` | `21449d7` | Sprint 4 FE complete (chat page). In review. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -97,12 +97,12 @@ Source of truth for "what's done / what's next" across both sides. Update
 | M5-BE-06 | Chat | BE | Create session endpoint | pending | backend | – |
 | M5-BE-07 | Chat | BE | Stream messages SSE | pending | backend | – |
 | M5-BE-08 | Chat | BE | Token usage + provider persisted | pending | backend | – |
-| M5-FE-01 | Chat | FE | SSE chat input | pending | frontend | – |
-| M5-FE-02 | Chat | FE | MessageList streaming | pending | frontend | – |
-| M5-FE-03 | Chat | FE | Provider badge | pending | frontend | – |
-| M5-FE-04 | Chat | FE | Tool-call display | pending | frontend | – |
-| M5-FE-05 | Chat | FE | Embed ChartRenderer in messages | pending | frontend | – |
-| M5-FE-06 | Chat | FE | Session list sidebar | pending | frontend | – |
+| M5-FE-01 | Chat | FE | SSE chat input | in_review | frontend | `21449d7` |
+| M5-FE-02 | Chat | FE | MessageList streaming | in_review | frontend | `21449d7` |
+| M5-FE-03 | Chat | FE | Provider badge | in_review | frontend | `21449d7` |
+| M5-FE-04 | Chat | FE | Tool-call display | in_review | frontend | `21449d7` |
+| M5-FE-05 | Chat | FE | Embed ChartRenderer in messages | in_review | frontend | `21449d7` |
+| M5-FE-06 | Chat | FE | Session list sidebar | in_review | frontend | `21449d7` |
 
 ---
 
