@@ -228,7 +228,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 2
+### What the suite covers as of Sprint 3
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -238,6 +238,7 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
 | `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
+| `tests/test_ml.py` | 7 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload |
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -373,7 +374,42 @@ row per step (with both `params` and `applied_changes`). After a
 preprocessing run, `GET /eda/{id}/charts` reads from the preprocessed
 file instead of the raw upload.
 
-### 7.6 Same flow via Swagger UI
+### 7.6 AutoML — train + leaderboard (Sprint 3)
+
+```bash
+# Synchronous: returns the full leaderboard inline
+curl -s -X POST "http://localhost:8000/api/v1/ml/train" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"dataset_id\": \"$DATASET_ID\",
+    \"target_column\": \"species\",
+    \"task_type\": \"classification\"
+  }" | python -m json.tool
+
+# Background: queues + returns immediately. Poll /leaderboard.
+curl -s -X POST "http://localhost:8000/api/v1/ml/train" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"dataset_id\": \"$DATASET_ID\",
+    \"target_column\": \"species\",
+    \"task_type\": \"classification\",
+    \"background\": true
+  }" | python -m json.tool
+
+curl -s "http://localhost:8000/api/v1/ml/leaderboard/$DATASET_ID" \
+  -H "Authorization: Bearer $TOKEN" | python -m json.tool
+```
+
+`POST /train` runs every estimator registered for the requested
+`task_type` (3 classifiers / 2 regressors as of Sprint 3), sorts by the
+primary metric (accuracy / r2), saves the winner via joblib at
+`<storage>/models/{id}_{name}.joblib`, and persists one `MlExperiment`
+per leaderboard entry (the winner gets `artifact_path`). Non-numeric
+features are dropped — preprocess first via §7.5 to keep them.
+
+### 7.7 Same flow via Swagger UI
 
 Open `http://localhost:8000/docs`, click **Authorize**, paste the JWT
 from §7.1, then exercise the routes from the UI. Easier than curl for

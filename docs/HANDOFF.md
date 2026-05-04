@@ -5,6 +5,83 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-04 — Session 9: SQLite-portable migrations + Sprint 3 BE (M4 AutoML)
+
+- **Branch**: `backend` — 3 commits on top of `4e7c79c` (develop tip
+  after Sprint 2 merge):
+  - `658aa99` — `fix(db)` migrations 0001 + 0002 portable (sa.Uuid +
+    sa.JSON.with_variant(JSONB, "postgresql")). 0002 downgrade now uses
+    `op.batch_alter_table` so it works on SQLite < 3.35 too.
+  - `f32b1ee` — `docs(walkthrough)` adds §4.1 "Quick path: SQLite (no
+    Docker)"; existing Docker/Postgres path renumbered §4.2–§4.5.
+  - `7e9a742` — `feat(ml)` Sprint 3 AutoML (M4-BE-01..07).
+- **Done — Polish**:
+  - **POL-08 (new ID)** — `658aa99`. Verified by running
+    `DATABASE_URL=sqlite+aiosqlite:///./data/dev.db alembic upgrade head`
+    on a fresh file: 8 tables created with the expected columns
+    (CHAR(32) for UUIDs, JSON for JSONB). `pytest -q` 26/26 still
+    green afterwards.
+- **Done — Sprint 3 BE** (all 7 task IDs `in_review` in TRACKING):
+  - **M4-BE-01..03** new estimators: `random_forest_classifier`,
+    `logistic_regression` (built-in StandardScaler so LBFGS converges;
+    importances = mean abs coefficient across classes), 
+    `random_forest_regressor`, `lightgbm_regressor`. Each one new file
+    + a single `@ModelRegistry.register` decorator + one import in
+    `app/services/ml/__init__.py` — extension via registry, not core
+    edits (RULES §2).
+  - **M4-BE-04..05** `POST /api/v1/ml/train`: loads dataset (prefers
+    `preprocessed_storage_path`), drops null-target rows, drops
+    non-numeric features (fillna 0), runs `auto_train`, picks best by
+    accuracy (classification) / r2 (regression), saves the winning
+    model via joblib at `<storage>/models/{id}_{name}.joblib`,
+    persists 1 `MlExperiment` row per leaderboard entry with
+    `artifact_path` only on the winner.
+  - **M4-BE-06** `GET /api/v1/ml/leaderboard/{dataset_id}`:
+    workspace-scoped, returns `ExperimentOut[]` ordered by
+    `created_at` desc.
+  - **M4-BE-07** background training: `body.background=true` enqueues
+    via FastAPI `BackgroundTasks`. The task opens its own DB session
+    via `get_sessionmaker()` because the request session closes after
+    the response is sent. Returns immediately with a stub
+    `TrainResponse{leaderboard:[], extras:{status:"queued"}}`.
+- **Tests**: `pytest -q` → **33 passed in 16.27s**. New file
+  `tests/test_ml.py` (7 cases): registry coverage, classification
+  end-to-end (60-row Iris-shaped, sorted accuracy desc, best has
+  feature_importance, artifact exists), regression end-to-end (80-row
+  synthetic linear, best r2 > 0.8), `/leaderboard` returns persisted
+  rows with exactly one carrying `artifact_path`, unknown target →
+  422, cross-workspace 404, saved artifact round-trips via joblib +
+  predicts (handles the (scaler, model) tuple from logistic_regression).
+- **Next session start**: User merges `backend` → `develop`. Then
+  Sprint 3 FE on `frontend`: M4-FE-01 (TrainForm — RHF + Zod for
+  target_column + task_type), M4-FE-02 (Leaderboard table sorted by
+  primary metric), M4-FE-03 (ExperimentDrawer with feature-importance
+  bar chart via `ChartRenderer`), M4-FE-04 (polling for in-progress
+  background runs). Read `docs/modules/M4_AUTOML.md` first.
+- **Blockers**: No external API keys for Sprint 3. Sprint 4 (Chat) is
+  when GROQ_API_KEY / GEMINI_API_KEY become required. Also: full E2E
+  browser smoke is now unblocked thanks to POL-08 — set
+  `DATABASE_URL=sqlite+aiosqlite:///./data/dev.db`, `alembic upgrade
+  head`, `uvicorn app.main:app --reload`, then `pnpm dev` on the
+  frontend.
+- **Notes**:
+  - Feature-prep happens inside the train endpoint, not the auto_train
+    runner, so the runner stays test-friendly with arbitrary X/y. If
+    the user uploads a CSV with categorical features and didn't run
+    preprocessing, the endpoint drops them and reports
+    `extras.dropped_non_numeric`. With zero numeric columns left we
+    raise `ValidationError("no_features")` rather than silently
+    failing.
+  - `logistic_regression` saves as a `(scaler, model)` tuple via
+    joblib. The artifact-reload test handles both shapes; future
+    Sprint 4 chat tools that load these artifacts must do the same
+    isinstance check.
+  - Sprint 3 acceptance "all classifiers train < 30s" easily met for
+    the 60-row Iris-shaped fixture; large datasets may need
+    background=true.
+
+---
+
 ## 2026-05-04 — Session 8: Sprint 2 merged to develop (BE + FE)
 
 - **Branch**: `develop` — merged `backend` (Session 6) then `frontend`
