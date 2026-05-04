@@ -22,6 +22,11 @@ class LocalStorage:
         target.write_bytes(data)
         return target
 
+    def path_for_preprocessed(self, dataset_id: UUID) -> Path:
+        """Path used by preprocessing pipeline output. Single overwrite per dataset."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        return self.root / f"{dataset_id}_pp.csv"
+
 
 def get_storage() -> LocalStorage:
     """FastAPI dependency. Reads settings each call so tests can monkey-patch."""

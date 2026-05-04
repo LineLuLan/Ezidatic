@@ -26,6 +26,9 @@ class Dataset(UUIDPkMixin, TimestampMixin, Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     column_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     profile: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    preprocessed_storage_path: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True
+    )
 
 
 class DatasetColumn(UUIDPkMixin, Base):
@@ -57,4 +60,5 @@ class PipelineLog(UUIDPkMixin, TimestampMixin, Base):
     )
     step_name: Mapped[str] = mapped_column(String(128), nullable=False)
     step_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    params: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     applied_changes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

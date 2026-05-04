@@ -20,7 +20,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 1 merge) | Integration. Sprint 1 BE + FE merged. |
-| `backend` | `fb56857` | Sprint 1 BE complete (auth + ingestion). |
+| `backend` | `3d637ab` | Sprint 2 BE complete (EDA + preprocessing). In review. |
 | `frontend` | `c251105` | Sprint 1 FE complete (auth + datasets). |
 
 > Update the latest-commit cells with the short SHA after each push.
@@ -55,13 +55,13 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Status | Branch | Commit |
 |----|--------|------|------|--------|--------|--------|
-| M3-BE-01 | EDA | BE | GET /eda/{id}/profile | pending | backend | – |
-| M3-BE-02 | EDA | BE | GET /eda/{id}/charts | pending | backend | – |
-| M3-BE-03 | EDA | BE | scatter + heatmap helpers | pending | backend | – |
-| M2-BE-01 | Preprocessing | BE | RemoveOutliers step | pending | backend | – |
-| M2-BE-02 | Preprocessing | BE | EncodeCategorical step | pending | backend | – |
-| M2-BE-03 | Preprocessing | BE | POST /preprocessing run | pending | backend | – |
-| M2-BE-04 | Preprocessing | BE | GET /preprocessing logs | pending | backend | – |
+| M3-BE-01 | EDA | BE | GET /eda/{id}/profile | in_review | backend | `6d84b6e` |
+| M3-BE-02 | EDA | BE | GET /eda/{id}/charts | in_review | backend | `6d84b6e` |
+| M3-BE-03 | EDA | BE | scatter + heatmap helpers | in_review | backend | `6d84b6e` |
+| M2-BE-01 | Preprocessing | BE | RemoveOutliers step | in_review | backend | `d72dff5` |
+| M2-BE-02 | Preprocessing | BE | EncodeCategorical step | in_review | backend | `d72dff5` |
+| M2-BE-03 | Preprocessing | BE | POST /preprocessing run | in_review | backend | `baaadfa` |
+| M2-BE-04 | Preprocessing | BE | GET /preprocessing logs | in_review | backend | `baaadfa` |
 | M3-FE-01 | EDA | FE | EDA page renders charts | pending | frontend | – |
 | M3-FE-02 | EDA | FE | Per-column drilldown | pending | frontend | – |
 | M3-FE-03 | EDA | FE | Responsive container | pending | frontend | – |
