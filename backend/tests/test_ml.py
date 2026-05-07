@@ -340,6 +340,125 @@ async def test_train_high_cardinality_categorical_dropped(
     assert extras["encoded_columns"]["user_id"].startswith("label(")
 
 
+# ----------------------------- Sprint 5 P1 -----------------------------------
+# Q5-ML-03 (5-fold CV reporting) + Q5-ML-04 (imbalance + metric selection).
+
+
+def _make_imbalanced_csv() -> str:
+    """100-row 90/10 imbalanced binary classification."""
+    rows = ["x1,x2,target"]
+    for i in range(100):
+        target = "high" if i < 10 else "low"
+        x1 = i + (5 if target == "high" else 0)
+        x2 = (i % 7) + (3 if target == "high" else 0)
+        rows.append(f"{x1},{x2},{target}")
+    return "\n".join(rows) + "\n"
+
+
+@pytest.mark.asyncio
+async def test_leaderboard_entries_carry_cv_mean_and_std(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-03: every leaderboard entry exposes cv_mean + cv_std."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "iris.csv", CLASSIFICATION_CSV.encode("utf-8"), "text/csv"
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "species",
+            "task_type": "classification",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    for entry in body["leaderboard"]:
+        assert "cv_mean" in entry["metrics"], entry["metrics"]
+        assert "cv_std" in entry["metrics"], entry["metrics"]
+        assert "primary_metric" in entry["metrics"]
+        assert entry["metrics"]["primary_metric"] == "accuracy"
+        # accuracy_std (per-metric std) surfaces alongside accuracy.
+        assert "accuracy_std" in entry["metrics"]
+    # Default n_splits = 5 (60-row Iris fixture has 20 per class).
+    assert body["best"]["metrics"]["n_splits"] == 5
+
+
+@pytest.mark.asyncio
+async def test_train_with_metric_f1_macro_ranks_by_f1(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-04: explicit metric=f1_macro ranks the leaderboard by f1."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "iris.csv", CLASSIFICATION_CSV.encode("utf-8"), "text/csv"
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "species",
+            "task_type": "classification",
+            "metric": "f1_macro",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    f1_values = [e["metrics"]["f1_macro"] for e in body["leaderboard"]]
+    assert f1_values == sorted(f1_values, reverse=True)
+    cv_means = [e["metrics"]["cv_mean"] for e in body["leaderboard"]]
+    assert cv_means == f1_values
+    assert body["extras"]["metric"] == "f1_macro"
+    assert all(
+        e["metrics"]["primary_metric"] == "f1_macro"
+        for e in body["leaderboard"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_train_imbalanced_dataset_flags_extras(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-04: 90/10 dataset → extras.class_balance.imbalanced=True."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "imb.csv",
+                _make_imbalanced_csv().encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "target",
+            "task_type": "classification",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    balance = body["extras"]["class_balance"]
+    assert balance["imbalanced"] is True
+    assert balance["counts"]["low"] == 90
+    assert balance["counts"]["high"] == 10
+    assert balance["ratio"] == 9.0
+
+
 @pytest.mark.asyncio
 async def test_artifact_reloads_and_predicts(
     auth_client: AsyncClient, isolated_storage: Path
