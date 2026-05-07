@@ -78,6 +78,73 @@ def scatter_spec(
     )
 
 
+def _select_period(series: pl.Series) -> str:
+    """Pick day / week / month bucket based on the datetime span.
+
+    Q5-EDA-01 rule: < 90 days → 1d, < 2 years → 1w, else 1mo.
+    """
+    non_null = series.drop_nulls()
+    if non_null.len() < 2:
+        return "1d"
+    try:
+        span = non_null.max() - non_null.min()
+        days = span.days if hasattr(span, "days") else int(span.total_seconds() / 86400)
+    except Exception:  # noqa: BLE001
+        return "1d"
+    if days < 90:
+        return "1d"
+    if days < 730:
+        return "1w"
+    return "1mo"
+
+
+def line_spec(
+    df: pl.DataFrame, datetime_col: str, period: str | None = None
+) -> ChartSpec:
+    """Count records over time, bucketed by ``period``. Q5-EDA-01.
+
+    If ``datetime_col`` is a string column it is parsed via
+    ``str.to_datetime(strict=False)`` first. ``period`` defaults to a
+    span-aware bucket (1d / 1w / 1mo).
+    """
+    series = df[datetime_col]
+    if series.dtype in (pl.Utf8, pl.String):
+        parsed = series.str.to_datetime(strict=False)
+        df_use = df.with_columns(parsed.alias(datetime_col))
+        series = df_use[datetime_col]
+    else:
+        df_use = df
+
+    chosen = period or _select_period(series)
+
+    grouped = (
+        df_use.lazy()
+        .filter(pl.col(datetime_col).is_not_null())
+        .with_columns(pl.col(datetime_col).dt.truncate(chosen).alias("period"))
+        .group_by("period")
+        .agg(pl.len().alias("count"))
+        .sort("period")
+        .collect()
+    )
+
+    data: list[dict[str, Any]] = []
+    for period_val, count in grouped.iter_rows():
+        if hasattr(period_val, "isoformat"):
+            label = period_val.isoformat()
+        else:
+            label = str(period_val)
+        data.append({"period": label, "count": int(count)})
+
+    return ChartSpec(
+        type="line",
+        title=f"Records over time ({datetime_col}, {chosen})",
+        x_axis=AxisSpec(key="period", label=datetime_col, type="time"),
+        y_axis=AxisSpec(key="count", label="count", type="numeric"),
+        series=[SeriesSpec(name=datetime_col, data=data)],
+        metadata={"period": chosen, "buckets": len(data)},
+    )
+
+
 def heatmap_spec(
     df: pl.DataFrame, columns: list[str] | None = None
 ) -> ChartSpec:
