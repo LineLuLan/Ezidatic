@@ -5,6 +5,98 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 17: Sprint 5 P0 ML merged into develop + remaining backlog
+
+- **Branch**: `develop` — merged `backend` (Session 16 — `8cfa1aa`) via
+  `--no-ff` merge commit. Q5-ML-01 + Q5-ML-02 flipped to `done` on
+  develop's TRACKING. After this, develop will be propagated to
+  `frontend` (docs only) per `feedback_docs_on_every_branch.md`.
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts on TRACKING /
+    HANDOFF / WALKTHROUGH because Session 16 was the only commit
+    diverging from develop).
+  - TRACKING: Q5-ML-01 + Q5-ML-02 status `done`. Active branches table
+    updated to reflect Sprint 5 P0 ML merge.
+  - This Session 17 entry added.
+- **Tests at session end**: pytest 46/46 (already verified on `backend`
+  in Session 16; merge is fast-forwardish so the suite is unchanged on
+  develop).
+- **State**: working tree on `develop` clean after this commit + push.
+- **Frontend propagate**: after pushing develop, merge `develop` →
+  `frontend` so docs (CLAUDE.md, docs/) stay current on every branch.
+  No FE code touches; `extras: Record<string, unknown>` already covers
+  the new `imputed_columns` / `encoded_columns` / `dropped_high_card`
+  / `dropped_datetime` / `imputation_strategy` keys — TypeScript
+  doesn't break.
+
+---
+
+### Remaining Sprint 5 backlog (10 items)
+
+Detail per issue lives in `docs/modules/M_QUALITY.md`.
+
+**P0 wave (next-up — high ROI, BE-only, ~1 session each)**:
+
+- **Q5-AGENT-01** — Router few-shot examples in
+  `backend/app/services/agents/router.py:22-30`. Add 3-5 labeled
+  examples per category (sql/ml/eda/explain/small_talk) so free-tier
+  LLMs stop misclassifying. Acceptance: 25-question fixture
+  ≥80% across Groq + Gemini.
+- **Q5-AGENT-02** — SQL worker schema enrichment in
+  `backend/app/services/agents/workers/sql_worker.py:44-47`. Pull
+  `min`/`max`/`unique_count`/`sample_values` from
+  `dataset.profile.columns[*]` (already cached) into the prompt.
+  Acceptance: 10-question fixture ≥8 produce executable SQL on first
+  try.
+
+**P1 wave (cross-side, schema/capability extension)**:
+
+- **Q5-AGENT-03** — SQL worker self-correction retry on tool failure
+  (1-attempt retry with the error message fed back to the LLM).
+- **Q5-AGENT-04** — Explain worker grounded with profile snippet (so
+  "what's the average salary?" cites the actual computed mean).
+- **Q5-EDA-01** — Datetime detection in profiler + line chart in EDA
+  picker. BE-only chart-spec; FE renderer already handles `line`.
+- **Q5-ML-03** — 5-fold CV reporting (`cv_mean`, `cv_std`) on every
+  leaderboard entry; FE drawer surfaces it. Cross-side.
+- **Q5-ML-04** — Class-imbalance detection + `metric` field on
+  `TrainRequest` (accuracy / f1_macro / roc_auc). Cross-side
+  (`TrainForm` adds a metric radio).
+
+**P2 wave (polish)**:
+
+- **Q5-EDA-02** — Box plot helper + recharts renderer (extends the
+  ChartSpec discriminated union with `boxplot`; cross-side).
+- **Q5-EDA-03** — Auto-scatter for top-correlated pairs (BE-only;
+  reuses the existing `scatter_spec` helper, just call sites in
+  `api/v1/eda.py`).
+- **Q5-ML-05** — Lightweight RandomizedSearchCV per estimator behind
+  a `tune: bool = false` flag.
+
+**Polish (separate from Q5)**:
+
+- **POL-01..07** — Husky/lint-staged, GitHub Actions CI,
+  Render+Vercel+Supabase deploy, UptimeRobot ping, Redis cache for
+  LLM responses, dark mode + a11y, final report. POL-08 (SQLite
+  migrations) effectively done since Session 9.
+
+**Suggested next-session order** (per RULES + ROI):
+
+1. Q5-AGENT-01 + Q5-AGENT-02 on `backend` — same wave style as
+   Session 16. 1 session, no FE, no schema changes. Both ship as
+   prompt edits + helper additions.
+2. Then Q5-EDA-01 + Q5-EDA-03 on `backend` — also FE-clean (line
+   chart and scatter renderers already exist).
+3. P1 wave (Q5-AGENT-03/04, Q5-ML-03/04, Q5-EDA-02): cross-side,
+   plan to do BE first then propagate FE per the same workflow as
+   Sprints 1–4.
+4. Q5-ML-05 last (gated behind a flag, low priority).
+
+**Out of scope for Q5** (per `M_QUALITY.md`): vector RAG, streaming
+SQL execution, active-learning loop, paid-model swap.
+
+---
+
 ## 2026-05-08 — Session 16: Sprint 5 P0 ML wave (Q5-ML-01/02)
 
 - **Branch**: `backend` — 1 commit (`d732e09`) on top of `a42c9b4`
