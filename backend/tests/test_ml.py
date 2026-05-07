@@ -189,6 +189,157 @@ async def test_train_404_for_other_workspace(
     assert response.status_code == 404
 
 
+# ----------------------------- Sprint 5 P0 -----------------------------------
+# Q5-ML-01 (median/mode imputation) + Q5-ML-02 (auto-encode categorical).
+
+# Mixed-dtype classification: 2 categorical + 1 numeric → binary target.
+def _make_categorical_csv() -> str:
+    departments = ["eng", "sales", "hr", "ops", "design"]
+    countries = ["VN", "US", "JP"]
+    bands = ["low", "high"]
+    rows = ["department,country,years_exp,salary_band"]
+    for i in range(60):
+        dept = departments[i % len(departments)]
+        country = countries[i % len(countries)]
+        years = i % 15
+        # "high" if eng and >5y, or sales and >8y; cheap signal so LightGBM
+        # fits something non-trivial.
+        band = "high" if (dept == "eng" and years > 5) or (
+            dept == "sales" and years > 8
+        ) else "low"
+        rows.append(f"{dept},{country},{years},{band}")
+    return "\n".join(rows) + "\n"
+
+
+# Regression with NaN injection on x1.
+def _make_nan_regression_csv() -> str:
+    rows = ["x1,x2,y"]
+    for i in range(80):
+        # 10% NaN rate in x1.
+        x1 = "" if i % 10 == 0 else str(i)
+        x2 = i % 7
+        y = 2 * i - x2 + (i % 3 - 1)
+        rows.append(f"{x1},{x2},{y}")
+    return "\n".join(rows) + "\n"
+
+
+# 250 rows so `email` column has 250 unique values (cardinality > 200 → drop).
+# `user_id` column has 50 unique values (in 20..200 → label encode).
+def _make_high_card_csv() -> str:
+    rows = ["user_id,email,target"]
+    for i in range(250):
+        user_id = f"u{i % 50}"  # 50 unique
+        email = f"user{i}@example.com"  # 250 unique
+        target = i % 3  # 3-class
+        rows.append(f"{user_id},{email},{target}")
+    return "\n".join(rows) + "\n"
+
+
+@pytest.mark.asyncio
+async def test_train_classification_with_categorical_features(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-02: mixed-dtype CSV trains successfully with auto-encoding."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "mixed.csv",
+                _make_categorical_csv().encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "salary_band",
+            "task_type": "classification",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert len(body["leaderboard"]) >= 3
+    encoded = body["extras"]["encoded_columns"]
+    assert "department" in encoded and encoded["department"].startswith("one_hot")
+    assert "country" in encoded and encoded["country"].startswith("one_hot")
+    # Best model's feature_importance must include encoded categorical keys.
+    importance_keys = set(body["best"]["feature_importance"].keys())
+    has_dept_dummy = any(k.startswith("department_") for k in importance_keys)
+    assert has_dept_dummy, importance_keys
+
+
+@pytest.mark.asyncio
+async def test_train_with_nan_uses_median_imputation(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-01: NaN-bearing column gets median-imputed by default."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "nanreg.csv",
+                _make_nan_regression_csv().encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "y",
+            "task_type": "regression",
+            "imputation": "median",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    imputed = body["extras"]["imputed_columns"]
+    assert "x1" in imputed
+    assert imputed["x1"].startswith("median(")
+    # 10% NaN imputation degrades synthetic linear fit; expect r2 > 0.3
+    # (was > 0.8 on the no-NaN regression fixture — drop is expected).
+    assert body["best"]["metrics"]["r2"] > 0.3
+
+
+@pytest.mark.asyncio
+async def test_train_high_cardinality_categorical_dropped(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-02: cardinality > 200 → drop; 20<card<=200 → label encode."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": (
+                "highcard.csv",
+                _make_high_card_csv().encode("utf-8"),
+                "text/csv",
+            )
+        },
+    )
+    dataset_id = upload.json()["id"]
+
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "target",
+            "task_type": "classification",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    extras = body["extras"]
+    assert "email" in extras["dropped_high_card"]
+    assert extras["encoded_columns"]["user_id"].startswith("label(")
+
+
 @pytest.mark.asyncio
 async def test_artifact_reloads_and_predicts(
     auth_client: AsyncClient, isolated_storage: Path

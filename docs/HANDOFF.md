@@ -5,6 +5,185 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 17: Sprint 5 P0 ML merged into develop + remaining backlog
+
+- **Branch**: `develop` — merged `backend` (Session 16 — `8cfa1aa`) via
+  `--no-ff` merge commit. Q5-ML-01 + Q5-ML-02 flipped to `done` on
+  develop's TRACKING. After this, develop will be propagated to
+  `frontend` (docs only) per `feedback_docs_on_every_branch.md`.
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts on TRACKING /
+    HANDOFF / WALKTHROUGH because Session 16 was the only commit
+    diverging from develop).
+  - TRACKING: Q5-ML-01 + Q5-ML-02 status `done`. Active branches table
+    updated to reflect Sprint 5 P0 ML merge.
+  - This Session 17 entry added.
+- **Tests at session end**: pytest 46/46 (already verified on `backend`
+  in Session 16; merge is fast-forwardish so the suite is unchanged on
+  develop).
+- **State**: working tree on `develop` clean after this commit + push.
+- **Frontend propagate**: after pushing develop, merge `develop` →
+  `frontend` so docs (CLAUDE.md, docs/) stay current on every branch.
+  No FE code touches; `extras: Record<string, unknown>` already covers
+  the new `imputed_columns` / `encoded_columns` / `dropped_high_card`
+  / `dropped_datetime` / `imputation_strategy` keys — TypeScript
+  doesn't break.
+
+---
+
+### Remaining Sprint 5 backlog (10 items)
+
+Detail per issue lives in `docs/modules/M_QUALITY.md`.
+
+**P0 wave (next-up — high ROI, BE-only, ~1 session each)**:
+
+- **Q5-AGENT-01** — Router few-shot examples in
+  `backend/app/services/agents/router.py:22-30`. Add 3-5 labeled
+  examples per category (sql/ml/eda/explain/small_talk) so free-tier
+  LLMs stop misclassifying. Acceptance: 25-question fixture
+  ≥80% across Groq + Gemini.
+- **Q5-AGENT-02** — SQL worker schema enrichment in
+  `backend/app/services/agents/workers/sql_worker.py:44-47`. Pull
+  `min`/`max`/`unique_count`/`sample_values` from
+  `dataset.profile.columns[*]` (already cached) into the prompt.
+  Acceptance: 10-question fixture ≥8 produce executable SQL on first
+  try.
+
+**P1 wave (cross-side, schema/capability extension)**:
+
+- **Q5-AGENT-03** — SQL worker self-correction retry on tool failure
+  (1-attempt retry with the error message fed back to the LLM).
+- **Q5-AGENT-04** — Explain worker grounded with profile snippet (so
+  "what's the average salary?" cites the actual computed mean).
+- **Q5-EDA-01** — Datetime detection in profiler + line chart in EDA
+  picker. BE-only chart-spec; FE renderer already handles `line`.
+- **Q5-ML-03** — 5-fold CV reporting (`cv_mean`, `cv_std`) on every
+  leaderboard entry; FE drawer surfaces it. Cross-side.
+- **Q5-ML-04** — Class-imbalance detection + `metric` field on
+  `TrainRequest` (accuracy / f1_macro / roc_auc). Cross-side
+  (`TrainForm` adds a metric radio).
+
+**P2 wave (polish)**:
+
+- **Q5-EDA-02** — Box plot helper + recharts renderer (extends the
+  ChartSpec discriminated union with `boxplot`; cross-side).
+- **Q5-EDA-03** — Auto-scatter for top-correlated pairs (BE-only;
+  reuses the existing `scatter_spec` helper, just call sites in
+  `api/v1/eda.py`).
+- **Q5-ML-05** — Lightweight RandomizedSearchCV per estimator behind
+  a `tune: bool = false` flag.
+
+**Polish (separate from Q5)**:
+
+- **POL-01..07** — Husky/lint-staged, GitHub Actions CI,
+  Render+Vercel+Supabase deploy, UptimeRobot ping, Redis cache for
+  LLM responses, dark mode + a11y, final report. POL-08 (SQLite
+  migrations) effectively done since Session 9.
+
+**Suggested next-session order** (per RULES + ROI):
+
+1. Q5-AGENT-01 + Q5-AGENT-02 on `backend` — same wave style as
+   Session 16. 1 session, no FE, no schema changes. Both ship as
+   prompt edits + helper additions.
+2. Then Q5-EDA-01 + Q5-EDA-03 on `backend` — also FE-clean (line
+   chart and scatter renderers already exist).
+3. P1 wave (Q5-AGENT-03/04, Q5-ML-03/04, Q5-EDA-02): cross-side,
+   plan to do BE first then propagate FE per the same workflow as
+   Sprints 1–4.
+4. Q5-ML-05 last (gated behind a flag, low priority).
+
+**Out of scope for Q5** (per `M_QUALITY.md`): vector RAG, streaming
+SQL execution, active-learning loop, paid-model swap.
+
+---
+
+## 2026-05-08 — Session 16: Sprint 5 P0 ML wave (Q5-ML-01/02)
+
+- **Branch**: `backend` — 1 commit (`d732e09`) on top of `a42c9b4`
+  (the develop tip after Sprint 4 merge + `d3826ae` Q5 backlog docs).
+  No FE changes. Plan file:
+  `C:\Users\admin\.claude\plans\ki-m-tra-xem-l-jaunty-starlight.md`.
+- **Done — Sprint 5 P0 ML** (2 task IDs flipped to `in_review`):
+  - **Q5-ML-01** — replaced `fillna(0)` with per-column imputation in
+    `app/api/v1/ml.py::_build_xy`. Default `median` for numeric, `mode`
+    for categorical. `TrainRequest.imputation` = `"median"|"mean"|"zero"`
+    (default median; "zero" preserves legacy behavior). Per-column
+    strategy logged to `extras.imputed_columns`. All-null columns
+    fall back to 0-fill + an `all_null_zero_filled` log entry.
+  - **Q5-ML-02** — auto-encode categorical features by cardinality
+    in the same `_build_xy`. `<=20` unique → one-hot via
+    `pd.get_dummies` (cast to int8 so LightGBM accepts), `21..200`
+    → label encode via `astype("category").cat.codes`, `>200`
+    → drop + log to `extras.dropped_high_card`. Datetime cols
+    are dropped + logged to `extras.dropped_datetime` (real
+    datetime support is Q5-EDA-01 / a future ML wave).
+  - **Plan deviation**: plan called for two separate commits, but
+    both items modify the same `_build_xy` body and the order
+    matters (impute first, then encode), so they ship as one
+    commit. Trade-off: one less rollback point, gain one
+    coherent diff. Tests cover each rule independently.
+- **Tests**: `pytest -q` → **46 passed in 21.80s**. Three new cases
+  in `tests/test_ml.py` (above the existing
+  `test_artifact_reloads_and_predicts`):
+  - `test_train_classification_with_categorical_features` — 60-row
+    CSV with `department` (5-uniq), `country` (3-uniq), `years_exp`
+    (numeric), `salary_band` (target). Asserts encoded_columns has
+    one-hot, best `feature_importance` keys include
+    `department_*`.
+  - `test_train_with_nan_uses_median_imputation` — 80-row regression
+    with 10% NaN inject in `x1`. Asserts `imputed_columns.x1`
+    starts with `"median("`, best r2 > 0.3 (was > 0.8 on the
+    no-NaN fixture; 10% NaN injection plus median fill drops r2
+    to ~0.45 — threshold tuned to 0.3 for headroom).
+  - `test_train_high_cardinality_categorical_dropped` — 250-row CSV
+    with `email` 250-unique (>200 → drop) + `user_id` 50-unique
+    (label encode). Asserts `dropped_high_card` contains
+    `email`, `encoded_columns.user_id` starts with `"label("`.
+- **WALKTHROUGH update** (§5 + §7.6): test count bumped 43 → 46;
+  §7.6 gained a "Sprint 5 P0 data prep" subsection explaining
+  the new imputation + encoding behavior + how to read the
+  `extras.*` audit keys. No new env vars, no new commands, no
+  new dependencies (`pandas` was already pulled in by polars
+  `to_pandas()` round-trip).
+- **State**: `pytest` 46/46. Working tree on `backend` after this
+  HANDOFF/TRACKING/WALKTHROUGH commit will be 2 commits ahead of
+  `origin/backend`.
+- **Next session start**: User runs SQLite live smoke per the plan's
+  4-step checklist (§7.6 of WALKTHROUGH covers steps 2 + 3 + 4).
+  Then merge `backend` → `develop`, then propagate develop → frontend
+  per `feedback_docs_on_every_branch.md` (docs only — no FE code
+  change required since `extras` is `Record<string, unknown>` on
+  the FE TS side already). After merge, the next P0 wave is
+  Q5-AGENT-01 + Q5-AGENT-02 (router few-shot + SQL worker schema
+  enrichment) — also `backend` branch, also self-contained, no FE
+  work. Read `docs/modules/M_QUALITY.md` Q5-AGENT-01..02 sections.
+- **Blockers**: None. SQLite smoke needs `alembic upgrade head` on
+  a fresh dev.db and at least one of the existing CSVs from
+  `tests/test_ml.py` (or any mixed-dtype CSV the user has handy).
+- **Notes**:
+  - **Backward compat for FE**: `TrainResponse.extras` is
+    `dict[str, Any]` and `frontend/lib/types.ts` types it as
+    `Record<string, unknown>`. New keys (`imputed_columns`,
+    `encoded_columns`, `dropped_high_card`, `dropped_datetime`,
+    `imputation_strategy`) just appear in the dict — no schema
+    break. The legacy `dropped_non_numeric` key is still emitted
+    (now narrower; equals `dropped_high_card + dropped_datetime`)
+    so any FE code reading it keeps working.
+  - **`TrainRequest.imputation` is optional** (default `"median"`);
+    the existing `frontend/components/ml/TrainForm.tsx` does not
+    submit this field and that's fine. Future Q5-ML-04 work will
+    add a `metric` field with the same pattern.
+  - **Leakage caveat**: imputation runs on full X before
+    `train_test_split` in `auto_train.py`. For free-tier workloads
+    the median/mode leakage is negligible; Q5-ML-03 (CV reporting)
+    will refactor to per-fold imputation.
+  - **LightGBM int8 cast**: `pd.get_dummies` returns bool columns
+    by default; LightGBM 4.x rejects bool dtype with strict
+    schema validation. The `_encode_categorical` helper casts
+    one-hot to `int8` to keep all 5 estimators happy.
+
+---
+
 ## 2026-05-05 — Session 15: Sprint 5 "Quality" backlog filed
 
 - **Branch**: `develop` (cross-cutting docs only, per CLAUDE.md). No

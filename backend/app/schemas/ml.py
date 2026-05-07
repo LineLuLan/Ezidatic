@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 TaskType = Literal["classification", "regression"]
+ImputationStrategy = Literal["median", "mean", "zero"]
 
 
 class TrainRequest(BaseModel):
@@ -15,6 +16,7 @@ class TrainRequest(BaseModel):
     target_column: str
     task_type: TaskType
     background: bool = False
+    imputation: ImputationStrategy = "median"
 
 
 class LeaderboardEntry(BaseModel):

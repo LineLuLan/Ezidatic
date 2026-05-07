@@ -1,4 +1,4 @@
-"""ML endpoints — Sprint 3 (M4)."""
+"""ML endpoints — Sprint 3 (M4) + Sprint 5 P0 quality (Q5-ML-01/02)."""
 
 import logging
 from pathlib import Path
@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 import joblib
+import pandas as pd
 import polars as pl
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import select
@@ -18,6 +19,7 @@ from app.models.ml_experiment import MlExperiment
 from app.models.workspace import Workspace
 from app.schemas.ml import (
     ExperimentOut,
+    ImputationStrategy,
     LeaderboardEntry,
     TrainRequest,
     TrainResponse,
@@ -30,9 +32,105 @@ router = APIRouter()
 
 log = logging.getLogger(__name__)
 
+ONE_HOT_MAX_CARDINALITY = 20
+LABEL_ENCODE_MAX_CARDINALITY = 200
 
-def _build_xy(df: pl.DataFrame, target: str) -> tuple[Any, Any, dict[str, Any]]:
-    """Drop rows with null target, drop non-numeric features, fillna(0)."""
+
+def _impute_numeric(
+    X: pd.DataFrame,
+    cols: list[str],
+    strategy: ImputationStrategy,
+    log_dict: dict[str, str],
+) -> pd.DataFrame:
+    """Fill NaN per numeric column. Q5-ML-01.
+
+    Imputation runs on the full X before train/val split. This is a
+    minor leakage trade-off acceptable for free-tier workloads; Q5-ML-03
+    (CV reporting) will move imputation inside each fold.
+    """
+    for col in cols:
+        series = X[col]
+        if series.notna().sum() == 0:
+            X[col] = 0
+            log_dict[col] = "all_null_zero_filled"
+            continue
+        if strategy == "median":
+            value = float(series.median())
+            X[col] = series.fillna(value)
+            log_dict[col] = f"median({value:.4g})"
+        elif strategy == "mean":
+            value = float(series.mean())
+            X[col] = series.fillna(value)
+            log_dict[col] = f"mean({value:.4g})"
+        else:  # "zero"
+            X[col] = series.fillna(0)
+            log_dict[col] = "zero"
+    return X
+
+
+def _impute_categorical(
+    X: pd.DataFrame, cols: list[str], log_dict: dict[str, str]
+) -> pd.DataFrame:
+    """Fill NaN with mode (most frequent). Q5-ML-01."""
+    for col in cols:
+        series = X[col]
+        modes = series.mode(dropna=True)
+        if len(modes) == 0:
+            X[col] = "missing"
+            log_dict[col] = "mode(missing)"
+        else:
+            value = modes.iloc[0]
+            X[col] = series.fillna(value)
+            log_dict[col] = f"mode({value})"
+    return X
+
+
+def _encode_categorical(
+    X: pd.DataFrame,
+    cols: list[str],
+    encoded_log: dict[str, str],
+    dropped_high_card: list[str],
+) -> pd.DataFrame:
+    """Auto-encode by cardinality. Q5-ML-02.
+
+    - cardinality <= ONE_HOT_MAX_CARDINALITY (20) → one-hot.
+    - <= LABEL_ENCODE_MAX_CARDINALITY (200) → label encode.
+    - > LABEL_ENCODE_MAX_CARDINALITY → drop (logged).
+    """
+    out = X.drop(columns=cols).copy()
+    for col in cols:
+        cardinality = X[col].nunique(dropna=False)
+        if cardinality <= ONE_HOT_MAX_CARDINALITY:
+            dummies = pd.get_dummies(X[col], prefix=col, drop_first=False)
+            # Cast bool dummies to int8 so estimators that don't accept bool
+            # (LightGBM with strict dtype check) stay happy.
+            dummies = dummies.astype("int8")
+            out = pd.concat([out, dummies], axis=1)
+            encoded_log[col] = f"one_hot({cardinality})"
+        elif cardinality <= LABEL_ENCODE_MAX_CARDINALITY:
+            out[col] = X[col].astype("category").cat.codes.astype("int32")
+            encoded_log[col] = f"label({cardinality})"
+        else:
+            dropped_high_card.append(col)
+            encoded_log[col] = f"dropped_high_card({cardinality})"
+    return out
+
+
+def _build_xy(
+    df: pl.DataFrame,
+    target: str,
+    imputation: ImputationStrategy = "median",
+) -> tuple[Any, Any, dict[str, Any]]:
+    """Build (X, y, extras) from the loaded dataframe.
+
+    Sprint 5 P0 pipeline:
+      1. Validate target.
+      2. Drop rows with null target.
+      3. Split numeric vs categorical (datetime cols dropped + logged).
+      4. Impute per-column (Q5-ML-01).
+      5. Auto-encode categoricals by cardinality (Q5-ML-02).
+      6. Final shape check; raise no_features if zero columns remain.
+    """
     if target not in df.columns:
         raise ValidationError(
             f"Target column '{target}' not found in dataset",
@@ -44,22 +142,47 @@ def _build_xy(df: pl.DataFrame, target: str) -> tuple[Any, Any, dict[str, Any]]:
     y = pdf[target]
     X = pdf.drop(columns=[target])
 
-    numeric = X.select_dtypes(include="number")
-    dropped = [c for c in X.columns if c not in numeric.columns]
-    X_clean = numeric.fillna(0)
+    numeric_cols = list(X.select_dtypes(include="number").columns)
+    datetime_cols = list(
+        X.select_dtypes(include=["datetime", "datetimetz"]).columns
+    )
+    categorical_cols = [
+        c for c in X.columns if c not in numeric_cols and c not in datetime_cols
+    ]
 
-    extras = {
-        "dropped_non_numeric": dropped,
+    imputed_log: dict[str, str] = {}
+    encoded_log: dict[str, str] = {}
+    dropped_high_card: list[str] = []
+
+    if datetime_cols:
+        X = X.drop(columns=datetime_cols)
+
+    X = _impute_numeric(X, numeric_cols, imputation, imputed_log)
+    X = _impute_categorical(X, categorical_cols, imputed_log)
+    X = _encode_categorical(
+        X, categorical_cols, encoded_log, dropped_high_card
+    )
+
+    extras: dict[str, Any] = {
         "rows_used": len(pdf),
-        "feature_count": X_clean.shape[1],
+        "feature_count": X.shape[1],
+        "imputation_strategy": imputation,
+        "imputed_columns": imputed_log,
+        "encoded_columns": encoded_log,
+        "dropped_high_card": dropped_high_card,
+        "dropped_datetime": datetime_cols,
+        # Backward-compat key kept so any existing FE consumer can still
+        # read it; now narrower since most categoricals get encoded.
+        "dropped_non_numeric": dropped_high_card + datetime_cols,
     }
-    if X_clean.shape[1] == 0:
+    if X.shape[1] == 0:
         raise ValidationError(
-            "No numeric feature columns left after filtering. "
-            "Run preprocessing (encode_categorical) first.",
+            "No usable feature columns after imputation + encoding. "
+            "Check that the dataset has numeric or low-cardinality "
+            "categorical columns.",
             code="no_features",
         )
-    return X_clean, y, extras
+    return X, y, extras
 
 
 def _persist_experiments(
@@ -139,7 +262,7 @@ async def train(
     parser = ParserRegistry.get_parser(source_path)
     df = await parser.parse(source_path)
 
-    X, y, extras = _build_xy(df, payload.target_column)
+    X, y, extras = _build_xy(df, payload.target_column, payload.imputation)
 
     if payload.background:
         # Snapshot data references the BackgroundTask will need.
