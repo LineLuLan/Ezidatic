@@ -5,6 +5,91 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 21: Sprint 5 EDA merged into develop + refreshed backlog
+
+- **Branch**: `develop` — merged `backend` (Session 20 — `028145a`) via
+  `--no-ff` merge commit. Q5-EDA-01 + Q5-EDA-03 flipped to `done`.
+  After this push, develop will be propagated to `frontend` and back
+  into `backend` (docs sync) per `feedback_docs_on_every_branch.md`.
+  With this merge, **6 of 12 Sprint 5 items are `done`** (the entire
+  P0 wave + the BE-only EDA wave).
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts on TRACKING /
+    HANDOFF / WALKTHROUGH because Session 20 was the only commit
+    diverging from develop's tip after Session 19 propagate).
+  - TRACKING: Q5-EDA-01 + Q5-EDA-03 status `done`. Active branches
+    table refreshed.
+  - This Session 21 entry added.
+- **Tests at session end**: pytest 57/57 (verified on `backend` in
+  Session 20; merge is content-only). Coverage:
+  - `tests/test_ml.py` 10 — Q5-ML-01/02
+  - `tests/test_agent_quality.py` 8 — Q5-AGENT-01/02
+  - `tests/test_eda.py` 7 — Q5-EDA-01/03 + the original 4 cases
+- **State**: working tree on `develop` clean after this commit + push.
+
+---
+
+### Remaining Sprint 5 backlog (6 items — P0 done, 2 EDA done)
+
+Detail per issue lives in `docs/modules/M_QUALITY.md`. P0 wave plus
+the BE-only EDA work are **done**; remaining work is mostly P1
+(cross-side capability extension) and a small P2 tail.
+
+**P1 wave (next-up, recommended order)**:
+
+- **Q5-AGENT-03** — SQL worker self-correction retry on tool failure.
+  1-attempt retry that feeds the error message back to the LLM. BE-
+  only. Builds on `_column_schema` from Session 18. Touches:
+  `backend/app/services/agents/workers/sql_worker.py`,
+  `backend/tests/test_chat.py` (or extend test_agent_quality.py).
+- **Q5-AGENT-04** — Explain worker grounded with profile snippet.
+  Wire dataset profile (now richer with `is_datetime` +
+  `sample_values`) into the EXPLAIN branch so answers cite real
+  computed stats. BE-only. Touches:
+  `backend/app/services/agents/workers/explain_worker.py`,
+  `backend/app/api/v1/chat.py`.
+- **Q5-ML-03** — 5-fold CV reporting (`cv_mean`, `cv_std`). Cross-
+  side (BE adds metric fields; FE drawer surfaces them). Touches:
+  `backend/app/services/ml/auto_train.py`,
+  `backend/app/schemas/ml.py`, `frontend/lib/types.ts`,
+  `frontend/components/ml/ExperimentDrawer.tsx`.
+- **Q5-ML-04** — Class-imbalance detection + `metric` field on
+  `TrainRequest`. Cross-side. Touches:
+  `backend/app/api/v1/ml.py` (imbalance check in `_build_xy`),
+  `backend/app/schemas/ml.py` (`metric` field),
+  `backend/app/services/ml/auto_train.py` (rank by chosen metric),
+  `frontend/components/ml/TrainForm.tsx` (metric radio).
+
+**P2 wave (polish — optional)**:
+
+- **Q5-EDA-02** — Box plot helper + recharts renderer (extends
+  ChartSpec discriminated union with `boxplot`). Cross-side.
+  Recharts has no native boxplot — render with custom segments.
+- **Q5-ML-05** — Lightweight RandomizedSearchCV per estimator
+  behind `tune: bool = false`. BE-only.
+
+**Polish (separate from Q5)**:
+
+- POL-01..07 (Husky/lint-staged, GitHub Actions CI, deploy stack,
+  UptimeRobot, Redis cache, dark mode, final report). POL-08
+  (SQLite migrations) effectively done since Session 9.
+
+**Suggested next-session order**:
+
+1. **Q5-AGENT-03 + Q5-AGENT-04** on `backend` — same wave style
+   as Sessions 18 + 20. Single session, BE-only, no FE commit
+   beyond docs propagate. Both reuse the schema enrichment +
+   profile fields shipped earlier.
+2. **Q5-ML-03 + Q5-ML-04** as a cross-side wave: BE first on
+   `backend`, then FE on `frontend` matching the schema changes.
+   This is the first Sprint 5 wave that needs a FE commit.
+3. **Q5-EDA-02 + Q5-ML-05** when there's spare capacity.
+
+**Out of scope for Q5**: vector RAG, streaming SQL execution,
+active-learning loop, paid-model swap.
+
+---
+
 ## 2026-05-08 — Session 20: Sprint 5 EDA wave (Q5-EDA-01 + Q5-EDA-03)
 
 - **Branch**: `backend` — 1 commit (`9ab1af7`) on top of `8d288f5`
