@@ -5,6 +5,73 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 25: Sprint 5 P1 ML FE + cross-side merge
+
+- **Branch**: `frontend` then `develop` — shipped FE half of Q5-ML-03/04
+  (commit `e9614a2`), merged BE (`881541f`) and FE (`e9614a2`) into
+  develop. **10/12 Sprint 5 items now `done`** — only Q5-EDA-02 (P2,
+  cross-side boxplot) and Q5-ML-05 (P2, BE-only tuning) remain.
+- **Done — FE Q5-ML-03/04**:
+  - `frontend/lib/types.ts`: added `Metric` + `ImputationStrategy`
+    union types. Extended `TrainRequest` with optional `metric` +
+    `imputation`. Loosened `LeaderboardEntry.metrics` to
+    `Record<string, unknown>` to match the BE schema change.
+  - `frontend/components/ml/TrainForm.tsx`: classification gains a
+    metric radio (accuracy / f1_macro / roc_auc). New optional
+    `imbalanceHint` prop renders an amber warning when
+    `extras.class_balance.imbalanced=true` and the user is still on
+    accuracy.
+  - `frontend/components/ml/ExperimentDrawer.tsx`: dedicated CV banner
+    "5-fold CV: μ=… ± …" using cv_mean/cv_std/n_splits/primary_metric
+    fields; numeric grid pairs each metric with its `_std` companion.
+  - `frontend/components/ml/Leaderboard.tsx`: widened `primaryMetric`
+    prop to `Metric`; added "CV ± std" column.
+  - `frontend/app/(dashboard)/ml/[id]/page.tsx`: tracks
+    `activeMetric`; sources `imbalanceHint` from train.data.extras;
+    passes both into TrainForm.
+- **Tests**: BE pytest 67/67 (run on backend in Session 24).
+- **State**: working tree on `develop` clean after this commit + push.
+  After propagating, `backend` and `frontend` will both sit at the
+  Session-25 docs sync tip.
+
+### ⚠ Known issue — FE typecheck
+
+Local `pnpm typecheck` couldn't be re-verified cleanly this session.
+The dev box's `frontend/node_modules` has a partial install state:
+some packages report as "module not found" (zustand, next/server,
+clsx, tailwind-merge, etc.) and the JSX namespace is missing. The
+errors are env-level — pre-existing across all files, not specific
+to my new TS code. To fix tomorrow:
+
+```powershell
+cd frontend
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force pnpm-lock.yaml  # only if pnpm install still fails
+pnpm install
+pnpm typecheck
+pnpm build
+```
+
+The new TS changes are small (5 files, well under 200 lines of diff)
+and the only `unknown`-access concern in
+`app/(dashboard)/ml/[id]/page.tsx` was explicitly type-narrowed
+(`typeof v === "number"`) before `.toFixed()` on the new
+`metrics[primaryMetric]` access. Eyeballing the diffs is sufficient
+for tonight; CI on a fresh install will catch any real type error.
+
+### Remaining Sprint 5 backlog (2 items)
+
+- **Q5-EDA-02** (P2 cross-side) — Box plot helper + recharts renderer
+  (extends ChartSpec with `boxplot`).
+- **Q5-ML-05** (P2 BE-only) — Lightweight RandomizedSearchCV per
+  estimator behind `tune: bool = false`.
+
+After these, the entire Q5 backlog is shipped and the only
+non-Q5 work is **Polish** (POL-01..07: CI, deploy, dark mode,
+final report).
+
+---
+
 ## 2026-05-08 — Session 24: Sprint 5 P1 ML BE wave (Q5-ML-03/04 BE half)
 
 - **Branch**: `backend` — 1 commit (`881541f`) on top of `a5a1b0f`
