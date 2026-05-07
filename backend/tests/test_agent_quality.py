@@ -151,3 +151,99 @@ def test_profile_column_includes_sample_values() -> None:
     assert len(cols["score"]["sample_values"]) == 3
     # Values render as strings (so the SQL prompt can quote them safely).
     assert all(isinstance(v, str) for v in cols["country"]["sample_values"])
+
+
+# ---------------------------------------------------------------------------
+# Q5-AGENT-04 — Explain worker grounded context
+# ---------------------------------------------------------------------------
+
+
+from app.services.agents.workers.explain_worker import build_grounded_context
+
+
+def test_grounded_context_carries_real_stats() -> None:
+    df = pl.DataFrame(
+        {
+            "salary": [50000, 60000, 70000, 80000, 90000],
+            "city": ["Hanoi", "Saigon", "Hanoi", "Danang", "Hanoi"],
+        }
+    )
+    profile = profile_dataframe(df)
+
+    text = build_grounded_context(
+        question="what is the average salary?",
+        profile=profile,
+        dataset_name="payroll",
+    )
+    assert "Dataset: payroll" in text
+    assert "5 rows" in text
+    assert "salary" in text
+    # 50k..90k mean = 70k → rendered as integer "70000".
+    assert "mean=70000" in text
+    assert "city" in text
+    assert "Hanoi" in text
+
+
+def test_grounded_context_prioritises_keyword_matches() -> None:
+    """Columns whose name overlaps with the question land in top-N first."""
+    cols = [
+        {
+            "name": f"unrelated_{i}",
+            "dtype": "Int64",
+            "null_count": 0,
+            "unique_count": 5,
+            "sample_values": [],
+            "stats": {"mean": 1.0, "min": 0.0, "max": 2.0, "std": 0.5},
+        }
+        for i in range(15)
+    ]
+    cols.append(
+        {
+            "name": "salary",
+            "dtype": "Float64",
+            "null_count": 0,
+            "unique_count": 5,
+            "sample_values": ["100", "200", "300"],
+            "stats": {
+                "mean": 75000.0,
+                "min": 50000.0,
+                "max": 100000.0,
+                "std": 1000.0,
+            },
+        }
+    )
+    profile = {"row_count": 5, "column_count": 16, "columns": cols}
+
+    text = build_grounded_context(
+        question="explain the salary distribution",
+        profile=profile,
+        max_columns=3,
+    )
+    assert "salary" in text
+    rendered = sum(1 for line in text.splitlines() if line.startswith("- "))
+    assert rendered == 3
+
+
+def test_grounded_context_handles_empty_or_none_profile() -> None:
+    assert build_grounded_context("q", None) == ""
+    assert build_grounded_context("q", {}) == ""
+    assert build_grounded_context("q", {"columns": []}) == ""
+
+
+def test_grounded_context_truncates_to_budget() -> None:
+    cols = [
+        {
+            "name": f"col_{i}",
+            "dtype": "Int64",
+            "null_count": 0,
+            "unique_count": 5,
+            "sample_values": ["1", "2", "3"],
+            "stats": {"mean": 5.0, "min": 0.0, "max": 10.0, "std": 1.0},
+        }
+        for i in range(200)
+    ]
+    profile = {"row_count": 100, "column_count": 200, "columns": cols}
+
+    text = build_grounded_context("anything", profile, max_chars=400)
+    assert len(text) <= 400
+    assert text.endswith("...")
