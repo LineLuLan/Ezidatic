@@ -20,7 +20,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 4 merge) | Integration. All sprints (1+2+3+4) BE + FE merged. |
-| `backend` | `a42c9b4` | Sprint 4 BE merged into develop. |
+| `backend` | `d732e09` | Sprint 5 P0 ML (Q5-ML-01/02) — in_review. |
 | `frontend` | `21449d7` | Sprint 4 FE merged into develop. |
 
 > Update the latest-commit cells with the short SHA after each push.
@@ -119,8 +119,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | pending |
 | Q5-EDA-02 | EDA | BE+FE | Box plot helper + renderer for skewed numerics | P2 | pending |
 | Q5-EDA-03 | EDA | BE | Auto-scatter for top-correlated pairs | P2 | pending |
-| Q5-ML-01 | AutoML | BE | Median/mode imputation (replace fillna(0)) | P0 | pending |
-| Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | pending |
+| Q5-ML-01 | AutoML | BE | Median/mode imputation (replace fillna(0)) | P0 | in_review (`d732e09`) |
+| Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | in_review (`d732e09`) |
 | Q5-ML-03 | AutoML | BE+FE | 5-fold CV reporting (cv_mean, cv_std) | P1 | pending |
 | Q5-ML-04 | AutoML | BE+FE | Class-imbalance handling + metric selection (F1/AUC) | P1 | pending |
 | Q5-ML-05 | AutoML | BE | Lightweight hyperparameter tuning (randomized search) | P2 | pending |

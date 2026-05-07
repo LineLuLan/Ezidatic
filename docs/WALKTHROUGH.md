@@ -228,7 +228,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 4
+### What the suite covers as of Sprint 5 P0
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -238,8 +238,10 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
 | `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
-| `tests/test_ml.py` | 7 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload |
+| `tests/test_ml.py` | 10 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop** |
 | `tests/test_chat.py` | 10 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404 |
+
+Total: **46** as of Sprint 5 P0 (was 43 at end of Sprint 4).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -407,8 +409,23 @@ curl -s "http://localhost:8000/api/v1/ml/leaderboard/$DATASET_ID" \
 `task_type` (3 classifiers / 2 regressors as of Sprint 3), sorts by the
 primary metric (accuracy / r2), saves the winner via joblib at
 `<storage>/models/{id}_{name}.joblib`, and persists one `MlExperiment`
-per leaderboard entry (the winner gets `artifact_path`). Non-numeric
-features are dropped — preprocess first via §7.5 to keep them.
+per leaderboard entry (the winner gets `artifact_path`).
+
+**Sprint 5 P0 data prep (Q5-ML-01/02)**: the endpoint now imputes and
+encodes automatically — running §7.5 preprocessing first is no longer
+required for mixed-dtype CSVs.
+
+- Imputation: NaN in numeric cols → column median (default), NaN in
+  categorical cols → column mode. Override per request via
+  `"imputation": "mean"` or `"imputation": "zero"` (zero = legacy
+  pre-Sprint5 behavior).
+- Encoding by cardinality: `≤20` unique → one-hot, `21..200` → label
+  encode, `>200` → drop.
+- Audit: response `extras.imputed_columns` /
+  `extras.encoded_columns` / `extras.dropped_high_card` /
+  `extras.dropped_datetime` show what was applied. Read these to
+  understand why a feature appeared (or didn't) in
+  `best.feature_importance`.
 
 ### 7.7 Chat — sessions + SSE messages (Sprint 4)
 
