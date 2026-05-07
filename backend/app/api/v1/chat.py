@@ -24,7 +24,10 @@ from app.schemas.chat import (
 )
 from app.services.agents.llm_adapter import LLMAdapter
 from app.services.agents.router import QueryType, route
-from app.services.agents.workers.explain_worker import explain_worker
+from app.services.agents.workers.explain_worker import (
+    build_grounded_context,
+    explain_worker,
+)
 from app.services.agents.workers.sql_worker import sql_worker_stream
 
 router = APIRouter()
@@ -131,19 +134,16 @@ async def _generate_response(
             full_text_parts.append("Attach a dataset to this session to run SQL.")
         else:
             # explain / eda / ml / small_talk → stream a contextual reply.
+            # Q5-AGENT-04: ground the prompt in real per-column stats so the
+            # LLM can cite actual values instead of inventing them.
             ctx = ""
             if dataset_id is not None:
                 dataset = await db.get(Dataset, dataset_id)
                 if dataset is not None and dataset.profile is not None:
-                    ctx = (
-                        f"Dataset: {dataset.original_name}, "
-                        f"{dataset.profile.get('row_count')} rows × "
-                        f"{dataset.profile.get('column_count')} cols. "
-                        f"Columns: "
-                        + ", ".join(
-                            f"{c['name']} ({c['dtype']})"
-                            for c in dataset.profile.get("columns", [])
-                        )
+                    ctx = build_grounded_context(
+                        question=payload.content,
+                        profile=dataset.profile,
+                        dataset_name=dataset.original_name or "",
                     )
             messages = [
                 {

@@ -134,27 +134,81 @@ async def sql_worker_stream(
     sql = _extract_sql(sql_resp.content)
 
     tool = ToolRegistry.get("query_dataset")
-    tool_call: dict[str, Any] = {
+    attempts: list[dict[str, Any]] = []
+    attempt: dict[str, Any] = {
         "name": "query_dataset",
         "args": {"sql": sql},
         "provider": sql_resp.provider,
     }
+    tool_result: dict[str, Any] | None = None
     try:
         tool_result = await tool.execute(sql=sql, dataset_id=dataset_id, db=db)
-        tool_call["result"] = {
+        attempt["result"] = {
             "columns": tool_result["columns"],
             "row_count": tool_result["row_count"],
             "preview_rows": tool_result["rows"][:5],
             "truncated": tool_result["truncated"],
         }
+        attempts.append(attempt)
     except Exception as e:  # noqa: BLE001
-        tool_call["error"] = str(e)
-        yield {
-            "type": "delta",
-            "text": f"I tried this SQL:\n\n```sql\n{sql}\n```\n\nbut it failed: {e}",
+        first_error = str(e)
+        attempt["error"] = first_error
+        attempts.append(attempt)
+
+        # Q5-AGENT-03: 1-attempt self-correction. Hand the failed SQL +
+        # error back to the LLM and ask for a fix. Cap at 1 retry — if
+        # the second pass also fails, surface both errors to the user
+        # instead of looping.
+        retry_prompt = (
+            "Your previous SQL failed:\n"
+            f"```sql\n{sql}\n```\n"
+            f"Error: {first_error}\n\n"
+            f"Original question: {question}\n\n"
+            "Columns (one per line):\n"
+            f"{schema}\n\n"
+            "Provide ONE corrected SQL SELECT statement that would answer "
+            "the question without that error. No prose, no fences, no "
+            "comments."
+        )
+        retry_resp = await llm.invoke(
+            messages=[{"role": "user", "content": retry_prompt}],
+            temperature=0.0,
+            max_tokens=200,
+        )
+        retry_sql = _extract_sql(retry_resp.content)
+        retry_attempt: dict[str, Any] = {
+            "name": "query_dataset",
+            "args": {"sql": retry_sql},
+            "provider": retry_resp.provider,
+            "retry": True,
         }
-        yield {"type": "tool_calls", "data": [tool_call]}
-        return
+        try:
+            tool_result = await tool.execute(
+                sql=retry_sql, dataset_id=dataset_id, db=db
+            )
+            retry_attempt["result"] = {
+                "columns": tool_result["columns"],
+                "row_count": tool_result["row_count"],
+                "preview_rows": tool_result["rows"][:5],
+                "truncated": tool_result["truncated"],
+            }
+            attempts.append(retry_attempt)
+            sql = retry_sql  # the successful statement, used in the summary
+        except Exception as e2:  # noqa: BLE001
+            retry_attempt["error"] = str(e2)
+            attempts.append(retry_attempt)
+            yield {
+                "type": "delta",
+                "text": (
+                    "I tried two SQL attempts but both failed.\n\n"
+                    f"Attempt 1:\n```sql\n{attempts[0]['args']['sql']}\n```\n"
+                    f"Error: {first_error}\n\n"
+                    f"Attempt 2 (retry):\n```sql\n{retry_sql}\n```\n"
+                    f"Error: {e2}"
+                ),
+            }
+            yield {"type": "tool_calls", "data": attempts}
+            return
 
     summary_messages = [
         {
@@ -178,4 +232,4 @@ async def sql_worker_stream(
     ]
     async for chunk in llm.stream(summary_messages, temperature=0.3, max_tokens=400):
         yield {"type": "delta", "text": chunk}
-    yield {"type": "tool_calls", "data": [tool_call]}
+    yield {"type": "tool_calls", "data": attempts}
