@@ -5,6 +5,98 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 22: Sprint 5 P1 agent wave (Q5-AGENT-03 + Q5-AGENT-04)
+
+- **Branch**: `backend` — 1 commit (`498686c`) on top of `09cb04e`
+  (the Session 21 docs sync tip). No FE changes — both items live
+  inside the agents service layer. Builds directly on
+  Q5-AGENT-02's `_column_schema` and `sample_values` from Session
+  18, so the diff is small (~480 lines incl. tests).
+- **Done — Sprint 5 P1 agent** (2 task IDs flipped to `in_review`):
+  - **Q5-AGENT-03** — `sql_worker_stream` now wraps `tool.execute`
+    in a 1-attempt self-correction retry. On first failure it
+    builds a retry prompt containing the failed SQL + error +
+    enriched schema and asks for a corrected SELECT statement.
+    Cap is 1 retry — if the second pass also fails, both attempts
+    surface in the streamed delta and the full audit goes into
+    `tool_calls`. Successful retries flag the audit row with
+    `retry=true`. The `attempts` list replaces the single
+    `tool_call` dict so callers see the full attempt history.
+  - **Q5-AGENT-04** — `explain_worker` exports a new
+    `build_grounded_context(question, profile, dataset_name, ...)`
+    helper. It picks top-N most relevant columns by keyword
+    overlap with the question (then numeric-first, then alpha)
+    and renders dtype + nulls + unique + mean/min/max/std (numeric
+    only) + up to 3 sample values per line. Capped at 1500 chars.
+    `chat.py` EXPLAIN branch now calls this instead of stitching a
+    thin "Columns: name (dtype), ..." string, so the LLM sees real
+    stats and can cite "average salary is 70000" instead of
+    inventing one.
+- **Tests**: `pytest -q` → **64 passed** (was 57). Seven new cases:
+  - `tests/test_chat.py` (3):
+    - `test_sql_worker_retries_on_first_attempt_failure` — scripted
+      provider returns `SELECT bogus_column FROM data` then a fixed
+      `SELECT name, age FROM data WHERE city = 'Hanoi'`. Asserts
+      `tool_calls` audit has 2 entries with `error` on the first
+      and `result` on the retry, retry flag set, summary streams.
+    - `test_sql_worker_surfaces_both_errors_when_retry_also_fails`
+      — both attempts use bogus columns. Asserts the streamed
+      `done.content` cites both SQL strings + both errors and
+      includes the literal "Attempt 2 (retry)" header.
+    - `test_explain_branch_passes_grounded_profile_to_llm` —
+      monkey-patches the fake provider's `stream` to capture the
+      messages list. Asserts the user message contains
+      `Context:`, the column name `age`, `mean=`, and a city
+      sample value (`Hanoi` or `Saigon`).
+  - `tests/test_agent_quality.py` (4 unit-level cases for
+    `build_grounded_context`): real stats render, keyword priority
+    pulls `salary` to top despite being last in the input list,
+    empty/None profile → empty string, wide profile truncates at
+    `max_chars` with `...` suffix.
+- **WALKTHROUGH update** (§5): test count 57 → 64; row notes for
+  `test_chat.py` (now 13) and `test_agent_quality.py` (now 12).
+  No new env vars / commands / dependencies.
+- **State**: `pytest` 64/64. Working tree on `backend` after the
+  HANDOFF/TRACKING/WALKTHROUGH commit will be 2 commits ahead of
+  `origin/backend` post-Session-21 sync.
+- **Next session start**: User merges `backend` → `develop`, then
+  propagates develop → `frontend` (docs only — no FE code change).
+  After merge, the next wave is the cross-side P1 set: **Q5-ML-03**
+  (5-fold CV reporting) + **Q5-ML-04** (class-imbalance + metric
+  selection). That's the first Sprint 5 wave that needs both BE +
+  FE commits — schema extension + a metric radio in TrainForm + cv
+  display in ExperimentDrawer.
+- **Blockers**: None. Live agent acceptance smoke ("real-LLM
+  evaluation that retries actually fix common Polars SQL errors")
+  needs Groq + Gemini keys and would burn free-tier tokens — the
+  deterministic test_chat fixtures cover the wiring; the user can
+  run the live smoke ad-hoc via WALKTHROUGH §7.7 against any
+  uploaded dataset.
+- **Notes**:
+  - **Audit shape change**: `tool_calls` is now ALWAYS a list of
+    attempts, never a single dict. The FE
+    `frontend/components/chat/ToolCallView.tsx` already iterates
+    a list (per Session 13's design), so no FE break. The new
+    `retry: bool` field on retry rows is optional and just
+    ignored by the FE if not handled.
+  - **Retry cost guard**: capped at exactly 1 retry. There is no
+    hyperparameter / config knob — if a real-world dataset
+    needs more, we'd revisit, but in practice Polars SQL errors
+    are deterministic and one retry is enough.
+  - **Grounded context budget**: 1500 chars matches
+    `_SCHEMA_CHAR_BUDGET` in sql_worker so the EXPLAIN branch
+    and the SQL branch see comparable context sizes; the column
+    selection diverges (sql_worker shows ALL columns truncated
+    at end; explain_worker shows top-N most-relevant). Both fit
+    well within Gemini 2.5-flash-lite's free-tier 32k context.
+  - **Explain worker signature**: the original
+    `explain_worker(question, context, llm)` async function still
+    exists and is unused by the chat endpoint (which passes the
+    grounded ctx directly into its inline streaming flow). Kept
+    in case future work wants a non-streaming fallback path.
+
+---
+
 ## 2026-05-08 — Session 21: Sprint 5 EDA merged into develop + refreshed backlog
 
 - **Branch**: `develop` — merged `backend` (Session 20 — `028145a`) via
