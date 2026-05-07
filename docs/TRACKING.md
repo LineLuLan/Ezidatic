@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (Sprint 5 P0 ML merge) | Integration. Sprint 4 + Q5-ML-01/02 merged. |
-| `backend` | `d732e09` | Sprint 5 P0 ML (Q5-ML-01/02) — merged into develop. |
-| `frontend` | `21449d7` | Sprint 4 FE merged. Pending: docs propagate from develop. |
+| `develop` | (Sprint 5 P0 agent merge) | Integration. Sprint 4 + Q5-ML-01/02 + Q5-AGENT-01/02 merged. |
+| `backend` | `5be4fee` | Sprint 5 P0 agent (Q5-AGENT-01/02) — merged into develop. |
+| `frontend` | `d0c12ba` | Pending: docs propagate from develop (Q5-AGENT-01/02). |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -112,8 +112,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Module | Side | Task | Priority | Status |
 |----|--------|------|------|----------|--------|
-| Q5-AGENT-01 | Chat | BE | Router few-shot examples | P0 | pending |
-| Q5-AGENT-02 | Chat | BE | SQL worker schema enrichment (sample values + ranges) | P0 | pending |
+| Q5-AGENT-01 | Chat | BE | Router few-shot examples | P0 | done (`6feebaa`) |
+| Q5-AGENT-02 | Chat | BE | SQL worker schema enrichment (sample values + ranges) | P0 | done (`6feebaa`) |
 | Q5-AGENT-03 | Chat | BE | SQL worker self-correction retry on tool failure | P1 | pending |
 | Q5-AGENT-04 | Chat | BE | Explain worker grounded with dataset profile | P1 | pending |
 | Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | pending |

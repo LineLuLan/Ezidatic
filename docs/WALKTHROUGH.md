@@ -228,7 +228,7 @@ Coverage:
 pytest --cov=app --cov-report=term-missing
 ```
 
-### What the suite covers as of Sprint 5 P0
+### What the suite covers as of Sprint 5 P0 (ML + Agent waves)
 
 | File | Tests | What it verifies |
 |------|-------|------------------|
@@ -240,8 +240,9 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
 | `tests/test_ml.py` | 10 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop** |
 | `tests/test_chat.py` | 10 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404 |
+| `tests/test_agent_quality.py` | 8 | **Q5-AGENT-01** ROUTER_PROMPT carries 3+ few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets |
 
-Total: **46** as of Sprint 5 P0 (was 43 at end of Sprint 4).
+Total: **54** as of Sprint 5 P0 (43 end-of-Sprint 4 → 46 after Q5-ML-01/02 → 54 after Q5-AGENT-01/02).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
