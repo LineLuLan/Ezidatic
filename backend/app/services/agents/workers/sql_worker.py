@@ -41,10 +41,61 @@ def _extract_sql(raw: str) -> str:
     return cleaned
 
 
-async def _column_schema(dataset: Dataset) -> str:
+_SCHEMA_CHAR_BUDGET = 1500
+
+
+def _format_number(v: float) -> str:
+    """Render a float without trailing zeros for compact prompts."""
+    if v == int(v):
+        return str(int(v))
+    return f"{v:.4g}"
+
+
+def _format_column_line(col: dict[str, Any]) -> str:
+    parts = [f"- {col['name']} ({col['dtype']})"]
+    parts.append(f"nulls={col.get('null_count', 0)}")
+    parts.append(f"unique={col.get('unique_count', 0)}")
+    stats = col.get("stats")
+    if stats:
+        parts.append(f"min={_format_number(stats['min'])}")
+        parts.append(f"max={_format_number(stats['max'])}")
+    samples = col.get("sample_values") or []
+    if samples:
+        rendered = ", ".join(repr(s) for s in samples[:3])
+        parts.append(f"samples=[{rendered}]")
+    return " | ".join(parts)
+
+
+async def _column_schema(
+    dataset: Dataset, max_chars: int = _SCHEMA_CHAR_BUDGET
+) -> str:
+    """Render a richer column schema for the SQL worker prompt.
+
+    Q5-AGENT-02: instead of just `name (dtype)`, expose null/unique
+    counts, numeric min/max, and up to 3 sample values per column.
+    Capped at ``max_chars`` so free-tier provider context budgets stay
+    safe; remaining columns are summarised as a count.
+    """
     profile = dataset.profile or {}
     cols = profile.get("columns", [])
-    return ", ".join(f"{c['name']} ({c['dtype']})" for c in cols) or "(unknown)"
+    if not cols:
+        return "(unknown)"
+
+    lines = [_format_column_line(c) for c in cols]
+    schema = "\n".join(lines)
+    if len(schema) <= max_chars:
+        return schema
+
+    out: list[str] = []
+    used = 0
+    for i, line in enumerate(lines):
+        if used + len(line) + 1 > max_chars:
+            remaining = len(lines) - i
+            out.append(f"- ... ({remaining} more columns omitted to fit context)")
+            break
+        out.append(line)
+        used += len(line) + 1
+    return "\n".join(out)
 
 
 async def sql_worker_stream(
@@ -66,10 +117,13 @@ async def sql_worker_stream(
     schema = await _column_schema(dataset)
     sql_prompt = (
         "You are a Polars SQL generator. The dataset is exposed as the table "
-        f"'data' with columns: {schema}.\n"
-        "Reply with ONE SQL SELECT statement. No prose, no markdown fences, "
-        "no comments. Use only ANSI SQL Polars supports (SELECT, WHERE, "
-        "GROUP BY, ORDER BY, LIMIT, basic aggregates).\n\n"
+        "'data'. Columns (one per line, with nulls/unique/min/max/samples):\n"
+        f"{schema}\n\n"
+        "Use the sample values to spell categorical filters correctly "
+        "(case-sensitive). Use min/max to keep numeric thresholds in "
+        "range. Reply with ONE SQL SELECT statement. No prose, no "
+        "markdown fences, no comments. Use only ANSI SQL Polars supports "
+        "(SELECT, WHERE, GROUP BY, ORDER BY, LIMIT, basic aggregates).\n\n"
         f"User question: {question}"
     )
     sql_resp = await llm.invoke(
