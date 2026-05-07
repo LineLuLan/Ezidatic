@@ -28,6 +28,21 @@ function buildImportanceSpec(
   };
 }
 
+// Q5-ML-03 / 04: keys we render through dedicated UI affordances rather
+// than the generic "every numeric metric" grid below.
+const HANDLED_KEYS = new Set([
+  "train_time_sec",
+  "feature_importance",
+  "cv_mean",
+  "cv_std",
+  "primary_metric",
+  "n_splits",
+]);
+
+function getNum(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 export function ExperimentDrawer({
   experiment,
   onClose,
@@ -39,14 +54,30 @@ export function ExperimentDrawer({
   const fi = (metrics.feature_importance ?? null) as
     | Record<string, number>
     | null;
-  const numericMetrics = Object.entries(metrics).filter(
-    ([key, value]) =>
-      typeof value === "number" &&
-      key !== "train_time_sec" &&
-      key !== "feature_importance",
-  ) as Array<[string, number]>;
-  const trainTime =
-    typeof metrics.train_time_sec === "number" ? metrics.train_time_sec : null;
+
+  // Pair each numeric metric (e.g. accuracy=0.92) with its `_std` companion
+  // (accuracy_std=0.03) so the drawer renders "accuracy 0.92 ± 0.03"
+  // instead of two separate cells. _std rows themselves are hidden from
+  // the generic grid.
+  const numericPairs: Array<{ key: string; mean: number; std: number | null }> =
+    [];
+  for (const [key, value] of Object.entries(metrics)) {
+    if (HANDLED_KEYS.has(key)) continue;
+    if (key.endsWith("_std")) continue;
+    const mean = getNum(value);
+    if (mean === null) continue;
+    const std = getNum(metrics[`${key}_std`]);
+    numericPairs.push({ key, mean, std });
+  }
+
+  const trainTime = getNum(metrics.train_time_sec);
+  const cvMean = getNum(metrics.cv_mean);
+  const cvStd = getNum(metrics.cv_std);
+  const nSplits = getNum(metrics.n_splits);
+  const primaryMetric =
+    typeof metrics.primary_metric === "string"
+      ? (metrics.primary_metric as string)
+      : null;
 
   return (
     <aside className="rounded-md border bg-card">
@@ -56,6 +87,7 @@ export function ExperimentDrawer({
           <h3 className="text-lg font-semibold">{experiment.model_type}</h3>
           <p className="text-xs text-muted-foreground">
             {experiment.task_type} · target = {experiment.target_column}
+            {primaryMetric ? ` · ranked by ${primaryMetric}` : ""}
           </p>
         </div>
         <button
@@ -67,11 +99,31 @@ export function ExperimentDrawer({
         </button>
       </div>
       <div className="space-y-4 p-4">
+        {cvMean !== null && nSplits !== null && (
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <span className="text-xs uppercase text-muted-foreground">
+              {Math.round(nSplits)}-fold CV ·{" "}
+              {primaryMetric ?? "primary metric"}
+            </span>
+            <div className="mt-0.5 font-mono text-base">
+              μ = {cvMean.toFixed(4)}
+              {cvStd !== null ? ` ± ${cvStd.toFixed(4)}` : ""}
+            </div>
+          </div>
+        )}
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          {numericMetrics.map(([k, v]) => (
-            <div key={k}>
-              <dt className="text-xs uppercase text-muted-foreground">{k}</dt>
-              <dd className="font-mono">{v.toFixed(4)}</dd>
+          {numericPairs.map(({ key, mean, std }) => (
+            <div key={key}>
+              <dt className="text-xs uppercase text-muted-foreground">{key}</dt>
+              <dd className="font-mono">
+                {mean.toFixed(4)}
+                {std !== null ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    ± {std.toFixed(4)}
+                  </span>
+                ) : null}
+              </dd>
             </div>
           ))}
           {trainTime !== null && (

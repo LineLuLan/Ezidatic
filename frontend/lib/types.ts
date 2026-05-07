@@ -80,17 +80,25 @@ export interface PreprocessingRunResponse {
 }
 
 export type TaskType = "classification" | "regression";
+export type ImputationStrategy = "median" | "mean" | "zero";
+export type Metric = "accuracy" | "f1_macro" | "roc_auc" | "r2";
 
 export interface TrainRequest {
   dataset_id: string;
   target_column: string;
   task_type: TaskType;
   background?: boolean;
+  imputation?: ImputationStrategy;
+  // Q5-ML-04: undefined → BE defaults to accuracy/r2 by task.
+  metric?: Metric;
 }
 
 export interface LeaderboardEntry {
   name: string;
-  metrics: Record<string, number>;
+  // Q5-ML-03: metrics dict now carries cv_mean / cv_std plus a
+  // `primary_metric` label (string) and `n_splits` (int) alongside the
+  // numeric metric values, so the type is loose.
+  metrics: Record<string, unknown>;
   train_time_sec: number;
   feature_importance: Record<string, number> | null;
 }
