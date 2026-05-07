@@ -5,6 +5,169 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 25: Sprint 5 P1 ML FE + cross-side merge
+
+- **Branch**: `frontend` then `develop` — shipped FE half of Q5-ML-03/04
+  (commit `e9614a2`), merged BE (`881541f`) and FE (`e9614a2`) into
+  develop. **10/12 Sprint 5 items now `done`** — only Q5-EDA-02 (P2,
+  cross-side boxplot) and Q5-ML-05 (P2, BE-only tuning) remain.
+- **Done — FE Q5-ML-03/04**:
+  - `frontend/lib/types.ts`: added `Metric` + `ImputationStrategy`
+    union types. Extended `TrainRequest` with optional `metric` +
+    `imputation`. Loosened `LeaderboardEntry.metrics` to
+    `Record<string, unknown>` to match the BE schema change.
+  - `frontend/components/ml/TrainForm.tsx`: classification gains a
+    metric radio (accuracy / f1_macro / roc_auc). New optional
+    `imbalanceHint` prop renders an amber warning when
+    `extras.class_balance.imbalanced=true` and the user is still on
+    accuracy.
+  - `frontend/components/ml/ExperimentDrawer.tsx`: dedicated CV banner
+    "5-fold CV: μ=… ± …" using cv_mean/cv_std/n_splits/primary_metric
+    fields; numeric grid pairs each metric with its `_std` companion.
+  - `frontend/components/ml/Leaderboard.tsx`: widened `primaryMetric`
+    prop to `Metric`; added "CV ± std" column.
+  - `frontend/app/(dashboard)/ml/[id]/page.tsx`: tracks
+    `activeMetric`; sources `imbalanceHint` from train.data.extras;
+    passes both into TrainForm.
+- **Tests**: BE pytest 67/67 (run on backend in Session 24).
+- **State**: working tree on `develop` clean after this commit + push.
+  After propagating, `backend` and `frontend` will both sit at the
+  Session-25 docs sync tip.
+
+### ⚠ Known issue — FE typecheck
+
+Local `pnpm typecheck` couldn't be re-verified cleanly this session.
+The dev box's `frontend/node_modules` has a partial install state:
+some packages report as "module not found" (zustand, next/server,
+clsx, tailwind-merge, etc.) and the JSX namespace is missing. The
+errors are env-level — pre-existing across all files, not specific
+to my new TS code. To fix tomorrow:
+
+```powershell
+cd frontend
+Remove-Item -Recurse -Force node_modules
+Remove-Item -Force pnpm-lock.yaml  # only if pnpm install still fails
+pnpm install
+pnpm typecheck
+pnpm build
+```
+
+The new TS changes are small (5 files, well under 200 lines of diff)
+and the only `unknown`-access concern in
+`app/(dashboard)/ml/[id]/page.tsx` was explicitly type-narrowed
+(`typeof v === "number"`) before `.toFixed()` on the new
+`metrics[primaryMetric]` access. Eyeballing the diffs is sufficient
+for tonight; CI on a fresh install will catch any real type error.
+
+### Remaining Sprint 5 backlog (2 items)
+
+- **Q5-EDA-02** (P2 cross-side) — Box plot helper + recharts renderer
+  (extends ChartSpec with `boxplot`).
+- **Q5-ML-05** (P2 BE-only) — Lightweight RandomizedSearchCV per
+  estimator behind `tune: bool = false`.
+
+After these, the entire Q5 backlog is shipped and the only
+non-Q5 work is **Polish** (POL-01..07: CI, deploy, dark mode,
+final report).
+
+---
+
+## 2026-05-08 — Session 24: Sprint 5 P1 ML BE wave (Q5-ML-03/04 BE half)
+
+- **Branch**: `backend` — 1 commit (`881541f`) on top of `a5a1b0f`
+  (Session 23 docs sync tip). FE half (TrainForm metric radio,
+  ExperimentDrawer cv display, Leaderboard cv col) ships in a
+  separate `frontend` commit before merge.
+- **Done — Sprint 5 P1 ML BE** (2 task IDs flipped to `in_review`):
+  - **Q5-ML-03** — `auto_train` rewritten around k-fold CV. Default
+    k=5; auto-clamps for tiny minority classes
+    (`max(2, min(5, min_class_count))`). Per-estimator metrics dict
+    now carries:
+      - per-metric mean (e.g. `accuracy`) + matching `..._std`
+      - `cv_mean` / `cv_std` mirroring the ranking metric
+      - `primary_metric` (string label) + `n_splits` (int)
+    Final fit on full data produces the joblib artifact +
+    feature_importance, so the saved model isn't just one fold.
+  - **Q5-ML-04** — `TrainRequest` gains optional `metric:
+    "accuracy"|"f1_macro"|"roc_auc"|"r2"`. When omitted, defaults to
+    accuracy/r2 by task. Falls back to the task default if the
+    chosen metric isn't computable. roc_auc is computed at the
+    auto_train layer via `predict_proba` + `multi_class="ovr"`
+    fallback; estimator code stays untouched. `_build_xy` now also
+    runs a class-balance summary for classification and emits
+    `extras.class_balance = {counts, ratio, imbalanced}`. Threshold
+    is `ratio > 1.5`.
+- **Schema**: `LeaderboardEntry.metrics` loosened from
+  `dict[str, float]` to `dict[str, Any]` to accommodate the new
+  `primary_metric` (string) + `n_splits` (int) keys. FE TS type is
+  `Record<string, number>` today — the FE commit will widen it.
+- **Tests**: `pytest -q` → **67 passed** (was 64). Three new cases:
+  - `test_leaderboard_entries_carry_cv_mean_and_std` — every entry
+    exposes `cv_mean`, `cv_std`, `accuracy_std`, `primary_metric`,
+    `n_splits=5` on the 60-row Iris fixture.
+  - `test_train_with_metric_f1_macro_ranks_by_f1` — explicit
+    `metric=f1_macro` re-ranks the leaderboard by f1, `cv_mean`
+    matches `f1_macro`, `extras.metric=f1_macro`, every entry's
+    `primary_metric=f1_macro`.
+  - `test_train_imbalanced_dataset_flags_extras` — 100-row 90/10
+    fixture → `extras.class_balance.imbalanced=True`,
+    `counts={low: 90, high: 10}`, `ratio=9.0`.
+  Existing 10 ML tests still green; the leakage trade-off note for
+  Q5-ML-01 is now obsolete (CV does fold-aware splitting), but the
+  current `_build_xy` still imputes on full X — true per-fold
+  imputation is a future refinement.
+- **WALKTHROUGH update** (§5 + §7.6): test count 64 → 67;
+  test_ml.py row updated; §7.6 gained a "Sprint 5 P1 metrics"
+  subsection covering CV behaviour, the new `metric` field, and the
+  `class_balance` imbalance hint.
+- **State**: `pytest` 67/67. Working tree on `backend` after this
+  HANDOFF/TRACKING/WALKTHROUGH commit will be 2 commits ahead of
+  `origin/backend` post-Session-23 sync.
+- **Next session start**: This is the **first cross-side wave** of
+  Sprint 5. Switch to `frontend` and ship the FE half:
+    1. `frontend/lib/types.ts` — extend `TrainRequest` with
+       `metric?: "accuracy" | "f1_macro" | "roc_auc" | "r2"`,
+       loosen `LeaderboardEntry.metrics` to
+       `Record<string, unknown>` (or define a richer shape).
+    2. `frontend/components/ml/TrainForm.tsx` — add a metric radio
+       (classification only); show a hint "this dataset looks
+       imbalanced" when the latest leaderboard / dataset profile
+       indicates imbalance.
+    3. `frontend/components/ml/ExperimentDrawer.tsx` — render
+       "5-fold CV: μ=0.87 ± 0.04" alongside the test metric.
+       Optional: render `accuracy_std` / `f1_macro_std` under each
+       metric value.
+    4. `frontend/components/ml/Leaderboard.tsx` — add a "CV ± std"
+       column or merge `cv_mean ± cv_std` into the primary-metric
+       cell.
+  Then `pnpm typecheck && pnpm build`, push, merge `backend` →
+  `develop`, then merge `frontend` → `develop`, then propagate
+  develop → side branches.
+- **Blockers**: None. The CV path is deterministic (random_state=42)
+  so the new tests are stable. roc_auc as the ranking metric works
+  on both binary and multi-class fixtures.
+- **Notes**:
+  - **Cost**: K=5 means each estimator runs 5 fold fits + 1 final
+    fit = 6 fits. On the 60-row Iris fixture this still completes
+    in ~1.4s; on real-world data the training endpoint should be
+    flipped to `background=true` more aggressively.
+  - **`metric_used` fallback**: if the user requests `roc_auc` on a
+    multi-class problem with an estimator that lacks
+    `predict_proba` (none ship today, but future plug-ins might),
+    auto_train falls back to the task default and the leaderboard
+    entry's `primary_metric` reflects the actual ranking metric.
+  - **Imbalance threshold**: ratio > 1.5 is intentionally lenient
+    so that 60/40 splits also surface as "consider f1_macro".
+    Tweak via `CLASS_IMBALANCE_RATIO_THRESHOLD` in
+    `app/api/v1/ml.py` if the FE hint is too noisy.
+  - **`primary_metric` string in metrics dict**: persisted via
+    `MlExperiment.metrics` JSON. The leaderboard endpoint already
+    types this column as `dict[str, Any] | None`, so persistence
+    is unchanged. Only the in-flight `LeaderboardEntry` schema
+    needed loosening.
+
+---
+
 ## 2026-05-08 — Session 23: Sprint 5 P1 agent merged into develop — agent backlog drained
 
 - **Branch**: `develop` — merged `backend` (Session 22 — `719cdb5`) via

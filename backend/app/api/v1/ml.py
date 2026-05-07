@@ -116,20 +116,46 @@ def _encode_categorical(
     return out
 
 
+CLASS_IMBALANCE_RATIO_THRESHOLD = 1.5
+
+
+def _class_balance_summary(y: pd.Series) -> dict[str, Any]:
+    """Q5-ML-04: report label frequency + an `imbalanced` boolean.
+
+    Surfaces the hint via `extras["class_balance"]` so the FE can
+    suggest a non-accuracy metric on imbalanced datasets.
+    """
+    counts = y.value_counts()
+    if counts.empty:
+        return {"counts": {}, "ratio": 1.0, "imbalanced": False}
+    raw = {str(k): int(v) for k, v in counts.items()}
+    max_c = float(counts.max())
+    min_c = float(counts.min()) or 1.0
+    ratio = max_c / min_c
+    return {
+        "counts": raw,
+        "ratio": float(ratio),
+        "imbalanced": ratio > CLASS_IMBALANCE_RATIO_THRESHOLD,
+    }
+
+
 def _build_xy(
     df: pl.DataFrame,
     target: str,
     imputation: ImputationStrategy = "median",
+    task_type: str = "classification",
 ) -> tuple[Any, Any, dict[str, Any]]:
     """Build (X, y, extras) from the loaded dataframe.
 
-    Sprint 5 P0 pipeline:
+    Sprint 5 P0 + P1 pipeline:
       1. Validate target.
       2. Drop rows with null target.
       3. Split numeric vs categorical (datetime cols dropped + logged).
       4. Impute per-column (Q5-ML-01).
       5. Auto-encode categoricals by cardinality (Q5-ML-02).
-      6. Final shape check; raise no_features if zero columns remain.
+      6. For classification: report class balance / imbalance flag
+         (Q5-ML-04).
+      7. Final shape check; raise no_features if zero columns remain.
     """
     if target not in df.columns:
         raise ValidationError(
@@ -175,6 +201,8 @@ def _build_xy(
         # read it; now narrower since most categoricals get encoded.
         "dropped_non_numeric": dropped_high_card + datetime_cols,
     }
+    if task_type == "classification":
+        extras["class_balance"] = _class_balance_summary(y)
     if X.shape[1] == 0:
         raise ValidationError(
             "No usable feature columns after imputation + encoding. "
@@ -262,7 +290,15 @@ async def train(
     parser = ParserRegistry.get_parser(source_path)
     df = await parser.parse(source_path)
 
-    X, y, extras = _build_xy(df, payload.target_column, payload.imputation)
+    X, y, extras = _build_xy(
+        df,
+        payload.target_column,
+        payload.imputation,
+        task_type=payload.task_type,
+    )
+    extras["metric"] = payload.metric or (
+        "accuracy" if payload.task_type == "classification" else "r2"
+    )
 
     if payload.background:
         # Snapshot data references the BackgroundTask will need.
@@ -271,6 +307,7 @@ async def train(
             dataset_id=dataset.id,
             target_column=payload.target_column,
             task_type=payload.task_type,
+            metric=payload.metric,
             X=X,
             y=y,
             extras=extras,
@@ -285,7 +322,7 @@ async def train(
             extras={**extras, "status": "queued"},
         )
 
-    leaderboard = auto_train(X, y, task=payload.task_type)
+    leaderboard = auto_train(X, y, task=payload.task_type, metric=payload.metric)
     if not leaderboard:
         raise ValidationError(
             "All estimators failed to fit. Check feature dtypes + target.",
@@ -338,6 +375,7 @@ async def _run_and_persist_in_background(
     dataset_id: UUID,
     target_column: str,
     task_type: str,
+    metric: str | None,
     X: Any,
     y: Any,
     extras: dict[str, Any],
@@ -348,7 +386,7 @@ async def _run_and_persist_in_background(
     from app.core.database import get_sessionmaker
 
     try:
-        leaderboard_rows = auto_train(X, y, task=task_type)
+        leaderboard_rows = auto_train(X, y, task=task_type, metric=metric)
         if not leaderboard_rows:
             log.warning("Background train: all estimators failed for %s", dataset_id)
             return

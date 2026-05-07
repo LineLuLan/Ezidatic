@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 TaskType = Literal["classification", "regression"]
 ImputationStrategy = Literal["median", "mean", "zero"]
+Metric = Literal["accuracy", "f1_macro", "roc_auc", "r2"]
 
 
 class TrainRequest(BaseModel):
@@ -17,11 +18,19 @@ class TrainRequest(BaseModel):
     task_type: TaskType
     background: bool = False
     imputation: ImputationStrategy = "median"
+    # Q5-ML-04: when omitted, defaults to accuracy for classification and r2
+    # for regression. auto_train falls back to the default if the chosen
+    # metric isn't computable for the dataset (e.g. roc_auc on a multiclass
+    # estimator without proba support).
+    metric: Metric | None = None
 
 
 class LeaderboardEntry(BaseModel):
     name: str
-    metrics: dict[str, float]
+    # Q5-ML-03: metrics dict now carries CV means + per-metric stds plus
+    # a `primary_metric` string saying which metric was used for ranking,
+    # so the type is loose to accommodate both floats and the string label.
+    metrics: dict[str, Any]
     train_time_sec: float
     feature_importance: dict[str, float] | None = None
 

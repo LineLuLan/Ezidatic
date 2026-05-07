@@ -238,11 +238,11 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
 | `tests/test_eda.py` | 7 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404, **`is_datetime` profile flag (Q5-EDA-01)**, **line chart for date column**, **auto-scatter top |corr| pair (Q5-EDA-03)** |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
-| `tests/test_ml.py` | 10 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop** |
+| `tests/test_ml.py` | 13 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop**, **5-fold CV reporting (Q5-ML-03)**, **metric=f1_macro re-ranks leaderboard (Q5-ML-04)**, **imbalanced fixture flags `class_balance`** |
 | `tests/test_chat.py` | 13 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404, **SQL retry on first-attempt failure (Q5-AGENT-03)**, **both-fail surfaces both errors**, **EXPLAIN branch ships grounded profile to LLM (Q5-AGENT-04)** |
 | `tests/test_agent_quality.py` | 12 | **Q5-AGENT-01** ROUTER_PROMPT few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets. **Q5-AGENT-04** `build_grounded_context` carries real stats, prioritises keyword-matched columns, handles empty profile, truncates to budget |
 
-Total: **64** as of Sprint 5 (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 after Q5-AGENT-03/04).
+Total: **67** as of Sprint 5 (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -442,6 +442,26 @@ required for mixed-dtype CSVs.
   `extras.dropped_datetime` show what was applied. Read these to
   understand why a feature appeared (or didn't) in
   `best.feature_importance`.
+
+**Sprint 5 P1 metrics (Q5-ML-03/04)**: training now runs k-fold CV
+and reports per-fold variance plus optional metric override.
+
+- 5-fold CV (StratifiedKFold for classification, KFold for
+  regression). `n_splits` auto-clamps for tiny minority classes
+  (`max(2, min(5, min_class_count))`).
+- Each leaderboard entry's `metrics` dict now carries `cv_mean`,
+  `cv_std`, `<metric>_std` (e.g. `accuracy_std`), `primary_metric`
+  (string), and `n_splits`. The FE drawer should render
+  "5-fold CV: μ=… ± …".
+- **Pick the ranking metric** via `"metric"` in the train body:
+  `"accuracy" | "f1_macro" | "roc_auc" | "r2"`. When omitted, defaults
+  to accuracy/r2 by task. Falls back to the default if the chosen
+  metric isn't computable (e.g. roc_auc on an estimator without
+  `predict_proba`).
+- **Imbalance hint**: classification responses include
+  `extras.class_balance = {counts, ratio, imbalanced}`. `imbalanced`
+  flips when `max_class / min_class > 1.5`. Use this on the FE to
+  prompt the user toward `f1_macro` / `roc_auc` instead of accuracy.
 
 ### 7.7 Chat — sessions + SSE messages (Sprint 4)
 
