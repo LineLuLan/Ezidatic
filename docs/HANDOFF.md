@@ -5,6 +5,93 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 19: Sprint 5 P0 agent merged into develop — P0 wave complete
+
+- **Branch**: `develop` — merged `backend` (Session 18 — `5be4fee`) via
+  `--no-ff` merge commit. Q5-AGENT-01 + Q5-AGENT-02 flipped to `done`.
+  After this push, develop will be propagated to `frontend` (docs only)
+  per `feedback_docs_on_every_branch.md`. With this merge, **the entire
+  Sprint 5 P0 wave (4 items: Q5-ML-01/02 + Q5-AGENT-01/02) is `done`**.
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts on TRACKING /
+    HANDOFF / WALKTHROUGH because Session 18 was the only commit
+    diverging from develop's tip after Session 17 propagate).
+  - TRACKING: Q5-AGENT-01 + Q5-AGENT-02 status `done`. Active
+    branches table refreshed.
+  - This Session 19 entry added.
+- **Tests at session end**: pytest 54/54 (verified on `backend` in
+  Session 18; merge is content-only so the suite is unchanged on
+  develop). All 4 P0 items have offline tests:
+  - `tests/test_ml.py` 10 cases (Q5-ML-01/02 covered).
+  - `tests/test_agent_quality.py` 8 cases (Q5-AGENT-01/02 covered).
+- **State**: working tree on `develop` clean after this commit + push.
+
+---
+
+### Remaining Sprint 5 backlog (8 items — P0 wave fully drained)
+
+Detail per issue lives in `docs/modules/M_QUALITY.md`. P0 wave is
+**done**; remaining work is P1 (capability extension, cross-side) and
+P2 (polish).
+
+**P1 wave (next-up — recommended order)**:
+
+- **Q5-EDA-01** — Datetime detection + line chart in EDA picker.
+  BE-only; FE renderer already handles `line`. Touches:
+  `backend/app/services/eda/profiler.py` (datetime branch),
+  `backend/app/services/eda/chart_spec.py` (`line_spec`),
+  `backend/app/api/v1/eda.py` (picker branch).
+- **Q5-AGENT-03** — SQL worker self-correction retry on tool failure.
+  1-attempt retry that feeds the error message back to the LLM. BE-
+  only. Touches: `backend/app/services/agents/workers/sql_worker.py`,
+  `backend/tests/test_chat.py`.
+- **Q5-AGENT-04** — Explain worker grounded with profile snippet.
+  Wire dataset profile into the EXPLAIN branch so answers cite real
+  computed stats. BE-only. Touches:
+  `backend/app/services/agents/workers/explain_worker.py`,
+  `backend/app/api/v1/chat.py`.
+- **Q5-ML-03** — 5-fold CV reporting (cv_mean, cv_std). Cross-side
+  (BE adds metric fields; FE drawer surfaces them). Touches:
+  `backend/app/services/ml/auto_train.py`,
+  `backend/app/schemas/ml.py`, `frontend/lib/types.ts`,
+  `frontend/components/ml/ExperimentDrawer.tsx`.
+- **Q5-ML-04** — Class-imbalance detection + `metric` field on
+  `TrainRequest`. Cross-side. Touches:
+  `backend/app/api/v1/ml.py` (imbalance check in `_build_xy`),
+  `backend/app/schemas/ml.py` (`metric` field),
+  `backend/app/services/ml/auto_train.py` (rank by chosen metric),
+  `frontend/components/ml/TrainForm.tsx` (metric radio).
+
+**P2 wave (polish — optional)**:
+
+- **Q5-EDA-02** — Box plot helper + recharts renderer (extends
+  ChartSpec discriminated union). Cross-side.
+- **Q5-EDA-03** — Auto-scatter for top-correlated pairs (BE-only;
+  reuses existing `scatter_spec`).
+- **Q5-ML-05** — Lightweight RandomizedSearchCV per estimator behind
+  `tune: bool = false`. BE-only.
+
+**Polish (separate from Q5)**:
+
+- POL-01..07 (CI, deploy, dark mode, final report). POL-08 (SQLite
+  migrations) effectively done since Session 9.
+
+**Suggested next-session order**:
+
+1. **Q5-EDA-01 + Q5-EDA-03** on `backend` (BE-only, FE renderer
+   ready). Same wave style as Sessions 16 + 18 — single session,
+   no FE commit needed beyond docs propagate.
+2. **Q5-AGENT-03 + Q5-AGENT-04** on `backend` (BE-only, builds on
+   the schema enrichment from Session 18).
+3. **Q5-ML-03 + Q5-ML-04** as a cross-side wave: BE first on
+   `backend`, then FE on `frontend` matching the schema changes.
+4. **P2** (Q5-EDA-02, Q5-ML-05) when there's spare capacity.
+
+**Out of scope for Q5**: vector RAG, streaming SQL execution,
+active-learning loop, paid-model swap.
+
+---
+
 ## 2026-05-08 — Session 18: Sprint 5 P0 agent wave (Q5-AGENT-01/02)
 
 - **Branch**: `backend` — 1 commit (`6feebaa`) on top of `e65b753`
