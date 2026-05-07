@@ -5,6 +5,86 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 23: Sprint 5 P1 agent merged into develop — agent backlog drained
+
+- **Branch**: `develop` — merged `backend` (Session 22 — `719cdb5`) via
+  `--no-ff` merge commit. Q5-AGENT-03 + Q5-AGENT-04 flipped to `done`.
+  After this push, develop will be propagated to `frontend` and back
+  into `backend` (docs sync) per `feedback_docs_on_every_branch.md`.
+  With this merge, **all 4 Q5-AGENT items are `done`** — the entire
+  agent quality backlog is shipped.
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts; Session 22 was
+    the only commit diverging from develop's tip after the Session
+    21 sync).
+  - TRACKING: Q5-AGENT-03 + Q5-AGENT-04 status `done`. Active
+    branches table refreshed.
+  - This Session 23 entry added.
+- **Tests at session end**: pytest 64/64 (verified on `backend` in
+  Session 22; merge is content-only). Aggregate Q5 coverage:
+  - Q5-ML-01/02: `tests/test_ml.py` 10 cases.
+  - Q5-AGENT-01/02/04: `tests/test_agent_quality.py` 12 cases.
+  - Q5-AGENT-03/04: `tests/test_chat.py` 13 cases (3 new in Session 22).
+  - Q5-EDA-01/03: `tests/test_eda.py` 7 cases.
+- **State**: working tree on `develop` clean after this commit + push.
+
+---
+
+### Remaining Sprint 5 backlog (4 items — agent + EDA + ML P0 done)
+
+Detail per issue lives in `docs/modules/M_QUALITY.md`. The remaining
+work is mostly cross-side ML (P1) plus a small P2 tail.
+
+**Cross-side P1 wave (next-up)**:
+
+- **Q5-ML-03** — 5-fold CV reporting (`cv_mean`, `cv_std`). BE
+  computes via `cross_val_score` (stratified for classification);
+  schema gains the fields; FE drawer shows
+  "5-fold CV: μ=… ± …" alongside the test metric. Touches:
+  `backend/app/services/ml/auto_train.py`,
+  `backend/app/schemas/ml.py`, `frontend/lib/types.ts`,
+  `frontend/components/ml/{ExperimentDrawer,Leaderboard}.tsx`.
+- **Q5-ML-04** — Class-imbalance detection + `metric` field on
+  `TrainRequest`. BE detects imbalance in `_build_xy`, schema gains
+  `metric: "accuracy" | "f1_macro" | "roc_auc"`, auto_train ranks by
+  chosen metric. FE TrainForm exposes a metric radio + a hint when
+  the dataset profile suggests imbalance. Touches:
+  `backend/app/api/v1/ml.py`,
+  `backend/app/schemas/ml.py`,
+  `backend/app/services/ml/auto_train.py`,
+  `frontend/lib/types.ts`,
+  `frontend/components/ml/TrainForm.tsx`.
+
+**P2 wave (polish — optional)**:
+
+- **Q5-EDA-02** — Box plot helper + recharts renderer (extends the
+  ChartSpec discriminated union with `boxplot`). Cross-side. Recharts
+  has no native boxplot — render with custom segments / SVG.
+- **Q5-ML-05** — Lightweight RandomizedSearchCV per estimator behind
+  `tune: bool = false` flag. BE-only.
+
+**Polish (separate from Q5)**:
+
+- POL-01..07 (Husky/lint-staged, GitHub Actions CI, deploy stack,
+  UptimeRobot, Redis cache, dark mode, final report). POL-08
+  (SQLite migrations) effectively done since Session 9.
+
+**Suggested next-session order**:
+
+1. **Q5-ML-03 + Q5-ML-04 BE** on `backend` — schema extension +
+   auto_train rewrite. Single session for both since they share the
+   metric/CV plumbing. Then push, merge, and propagate.
+2. **Q5-ML-03 + Q5-ML-04 FE** on `frontend` — drawer cv display +
+   train form metric radio. This is the first Sprint 5 wave that
+   needs a real FE commit (everything before fit through
+   `extras: Record<string, unknown>` on the existing types).
+3. **Q5-EDA-02 + Q5-ML-05** when there's spare capacity.
+
+**Out of scope for Q5**: vector RAG, streaming SQL execution,
+active-learning loop, paid-model swap.
+
+---
+
 ## 2026-05-08 — Session 22: Sprint 5 P1 agent wave (Q5-AGENT-03 + Q5-AGENT-04)
 
 - **Branch**: `backend` — 1 commit (`498686c`) on top of `09cb04e`
