@@ -5,6 +5,95 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 20: Sprint 5 EDA wave (Q5-EDA-01 + Q5-EDA-03)
+
+- **Branch**: `backend` — 1 commit (`9ab1af7`) on top of `8d288f5`
+  (the Session 19 docs sync tip). No FE changes — the Recharts
+  adapter already renders `line` and `scatter`, and the ChartSpec
+  discriminated union already lists both.
+- **Done — Sprint 5 EDA** (2 task IDs flipped to `in_review`):
+  - **Q5-EDA-01** (P1) — datetime detection + line chart.
+    `backend/app/services/eda/profiler.py` adds
+    `is_datetime_series(series)` (recognises Polars temporal dtypes
+    + string columns that parse at ≥80% via
+    `str.to_datetime(strict=False)` on a 50-sample). `profile_column`
+    surfaces `is_datetime: bool` so future agent work
+    (Q5-AGENT-04 grounded explain, datetime-aware ML) can read it.
+    `chart_spec.line_spec(df, datetime_col, period=None)` parses
+    string columns on the fly, picks a span-aware bucket
+    (1d / 1w / 1mo per <90d / <2y / else), and emits
+    count-over-period via `pl.col.dt.truncate`. The eda picker emits
+    one line per datetime column AND skips those columns in the
+    bar-chart branch (no double rendering).
+  - **Q5-EDA-03** (P2) — auto-scatter for top |corr| pairs. After
+    the heatmap is built, the picker walks its cells, dedupes
+    unordered pairs, ranks by `|corr|`, and emits up to 3 scatters
+    for pairs above `0.5`. Skips NaN correlations (constant columns)
+    and skips entirely when `< 2` numeric columns exist (no
+    heatmap → no pair list). Reuses the existing `scatter_spec`
+    helper unchanged.
+- **Tests**: `pytest -q` → **57 passed** (was 54). Three new cases
+  in `tests/test_eda.py` (above the existing
+  `test_eda_404_for_other_workspace`):
+  - `test_profile_includes_is_datetime_flag` — `order_date` string
+    column flagged True, numeric `amount` flagged False.
+  - `test_charts_emit_line_for_datetime_column` — 8-row date+amount
+    CSV produces a line spec with `x_axis.label="order_date"`,
+    `x_axis.type="time"`, `y_axis.key="count"`, 8 daily buckets.
+    Also asserts the datetime column does NOT also appear as a bar
+    chart (no double-render regression).
+  - `test_charts_emit_scatter_for_top_correlated_pairs` — strongly
+    linear `y = 2x + noise` 24-row CSV emits at least one scatter,
+    and the (x, y) pair is in the auto-emitted set.
+  Existing 4 EDA tests stay green; MIXED_CSV's age+salary pair
+  triggers a new scatter, but
+  `test_charts_auto_pick_histogram_bar_heatmap` only asserts
+  minimum spec counts.
+- **WALKTHROUGH update** (§5 + §7.4): test count bumped 54 → 57;
+  §7.4 EDA section gained a "Sprint 5 P1/P2 EDA additions"
+  subsection documenting `is_datetime` + `sample_values` on
+  `/profile`, datetime line charts, and auto-scatter rules.
+- **State**: `pytest` 57/57. Working tree on `backend` after this
+  HANDOFF/TRACKING/WALKTHROUGH commit will be 2 commits ahead of
+  `origin/backend` (post-Session-19 sync).
+- **Next session start**: User merges `backend` → `develop`, then
+  propagates develop → `frontend` (docs only — no FE code touches).
+  After merge, the next BE-only wave is Q5-AGENT-03 + Q5-AGENT-04
+  (SQL retry on tool failure + grounded explain worker). Both reuse
+  the schema enrichment / sample_values shipped in Session 18 so
+  the diff is small. After that, Q5-ML-03 + Q5-ML-04 are the
+  remaining cross-side P1 items.
+- **Blockers**: None. Full smoke checklist for the EDA charts in
+  WALKTHROUGH §7.4 covers the new line + scatter charts via
+  `curl /api/v1/eda/$DATASET_ID/charts | python -m json.tool` —
+  any CSV with a date column or two correlated numeric columns
+  exercises the new branches.
+- **Notes**:
+  - **`is_datetime` back-compat**: profiles cached on existing
+    datasets (uploaded before this commit) won't carry the flag
+    until they re-profile. The picker re-detects from the live df
+    each call to `/charts`, so users see the new line charts
+    immediately. Only direct readers of the cached profile (e.g.
+    a future agent worker) need to handle the missing flag — they
+    should default to `col.get("is_datetime", False)`.
+  - **Period selection**: `_select_period` uses `(max - min).days`
+    on Polars Datetime arithmetic. Fixture span is 7 days
+    (Jan 5 → Jan 12) → 1d bucket → 8 buckets. Wider spans (e.g.
+    a year of orders) collapse to weekly automatically.
+  - **Scatter dedup**: `tuple(sorted((x, y)))` keys the seen-set
+    so we don't emit both (age, salary) and (salary, age). Self-
+    pairs (x == y) are filtered before sort, NaN values before
+    abs, so the ranking only sees real pairs.
+  - **No FE commit**: `ChartSpec.type` already includes `line` and
+    `scatter`; the recharts adapter already renders them. The
+    EDA page (`frontend/app/(dashboard)/eda/[id]/page.tsx`)
+    iterates `useEdaCharts(id)` data and renders via
+    `ChartRenderer`, which is type-agnostic, so the new specs
+    flow through without code change. Verified by reading the FE
+    adapter during planning; live FE smoke pending merge.
+
+---
+
 ## 2026-05-08 — Session 19: Sprint 5 P0 agent merged into develop — P0 wave complete
 
 - **Branch**: `develop` — merged `backend` (Session 18 — `5be4fee`) via

@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (Sprint 5 P0 agent merge) | Integration. Sprint 4 + Q5-ML-01/02 + Q5-AGENT-01/02 merged. |
-| `backend` | `5be4fee` | Sprint 5 P0 agent (Q5-AGENT-01/02) — merged into develop. |
-| `frontend` | `d0c12ba` | Pending: docs propagate from develop (Q5-AGENT-01/02). |
+| `develop` | `ddb798c` | Integration. Sprint 4 + Q5 P0 wave merged. Pending: Q5-EDA-01/03. |
+| `backend` | `9ab1af7` | Sprint 5 P1/P2 EDA (Q5-EDA-01/03) — in_review. |
+| `frontend` | `094c4c8` | Synced to develop ddb798c via merge. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -116,9 +116,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Q5-AGENT-02 | Chat | BE | SQL worker schema enrichment (sample values + ranges) | P0 | done (`6feebaa`) |
 | Q5-AGENT-03 | Chat | BE | SQL worker self-correction retry on tool failure | P1 | pending |
 | Q5-AGENT-04 | Chat | BE | Explain worker grounded with dataset profile | P1 | pending |
-| Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | pending |
+| Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | in_review (`9ab1af7`) |
 | Q5-EDA-02 | EDA | BE+FE | Box plot helper + renderer for skewed numerics | P2 | pending |
-| Q5-EDA-03 | EDA | BE | Auto-scatter for top-correlated pairs | P2 | pending |
+| Q5-EDA-03 | EDA | BE | Auto-scatter for top-correlated pairs | P2 | in_review (`9ab1af7`) |
 | Q5-ML-01 | AutoML | BE | Median/mode imputation (replace fillna(0)) | P0 | done (`d732e09`) |
 | Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | done (`d732e09`) |
 | Q5-ML-03 | AutoML | BE+FE | 5-fold CV reporting (cv_mean, cv_std) | P1 | pending |

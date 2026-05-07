@@ -236,13 +236,13 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_auth.py` | 5 | Register, dup-email, login, wrong password, unknown email |
 | `tests/test_datasets.py` | 6 | Upload, format reject, auth required, list, detail, x-workspace 404 |
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
-| `tests/test_eda.py` | 4 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404 |
+| `tests/test_eda.py` | 7 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404, **`is_datetime` profile flag (Q5-EDA-01)**, **line chart for date column**, **auto-scatter top |corr| pair (Q5-EDA-03)** |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
 | `tests/test_ml.py` | 10 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop** |
 | `tests/test_chat.py` | 10 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404 |
 | `tests/test_agent_quality.py` | 8 | **Q5-AGENT-01** ROUTER_PROMPT carries 3+ few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets |
 
-Total: **54** as of Sprint 5 P0 (43 end-of-Sprint 4 → 46 after Q5-ML-01/02 → 54 after Q5-AGENT-01/02).
+Total: **57** as of Sprint 5 (43 end-of-Sprint 4 → 46 after Q5-ML-01/02 → 54 after Q5-AGENT-01/02 → 57 after Q5-EDA-01/03).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -349,10 +349,25 @@ curl -s "http://localhost:8000/api/v1/eda/$DATASET_ID/charts" \
   -H "Authorization: Bearer $TOKEN" | python -m json.tool
 ```
 
-`/profile` returns the cached `DatasetProfile` JSON. `/charts` returns a
-list of `ChartSpec`s — one histogram per numeric column, one bar per
-categorical column with cardinality ≤ 50, plus one heatmap when at
-least two numeric columns exist.
+`/profile` returns the cached `DatasetProfile` JSON. Each column object
+now also carries `is_datetime: bool` (Q5-EDA-01) and `sample_values:
+list[str]` (Q5-AGENT-02). `/charts` returns a list of `ChartSpec`s —
+one histogram per numeric column, one bar per categorical column with
+cardinality ≤ 50, plus one heatmap when at least two numeric columns
+exist.
+
+**Sprint 5 P1/P2 EDA additions**:
+
+- **Q5-EDA-01**: every column flagged `is_datetime=True` (native
+  Polars temporal dtype OR ≥80% of a 50-row string sample parses to
+  datetime) gets a `line` ChartSpec of `count(*)` over a span-aware
+  period (1d if span < 90 days, 1w if < 2 years, else 1mo).
+  Datetime columns are excluded from the bar-chart branch so they
+  don't double-render.
+- **Q5-EDA-03**: after the heatmap is built, the picker ranks
+  unique unordered correlation pairs by `|corr|` and emits up to
+  3 auto-scatters for pairs above `0.5`. Pairs with NaN
+  correlation (e.g. constant columns) are skipped.
 
 ### 7.5 Preprocessing — run + logs (Sprint 2)
 
