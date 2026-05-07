@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDataset } from "@/lib/hooks/useDatasets";
 import { useLeaderboard, useTrainModel } from "@/lib/hooks/useMl";
-import type { ExperimentOut, TaskType } from "@/lib/types";
+import type { ExperimentOut, Metric, TaskType } from "@/lib/types";
 
 const POLL_MS = 5_000;
 
@@ -20,6 +20,9 @@ export default function MlPage({ params }: { params: { id: string } }) {
   const [pollUntilCount, setPollUntilCount] = useState<number | null>(null);
   const [selected, setSelected] = useState<ExperimentOut | null>(null);
   const [taskType, setTaskType] = useState<TaskType>("classification");
+  // Q5-ML-04: track the metric used by the most recent train so the
+  // leaderboard column header + sort key reflect the user's choice.
+  const [activeMetric, setActiveMetric] = useState<Metric>("accuracy");
 
   const leaderboard = useLeaderboard(
     params.id,
@@ -37,7 +40,21 @@ export default function MlPage({ params }: { params: { id: string } }) {
     }
   }, [leaderboard.data, pollUntilCount]);
 
-  const primaryMetric = taskType === "classification" ? "accuracy" : "r2";
+  const primaryMetric: Metric =
+    taskType === "regression" ? "r2" : activeMetric;
+  // Q5-ML-04: surface BE imbalance hint to the train form via extras.
+  const imbalanceHint =
+    train.data?.extras &&
+    typeof train.data.extras === "object" &&
+    "class_balance" in train.data.extras
+      ? Boolean(
+          (
+            train.data.extras as {
+              class_balance?: { imbalanced?: boolean };
+            }
+          ).class_balance?.imbalanced,
+        )
+      : false;
 
   if (dataset.isLoading) {
     return <p className="text-sm text-muted-foreground">Loading dataset…</p>;
@@ -73,8 +90,13 @@ export default function MlPage({ params }: { params: { id: string } }) {
           <TrainForm
             columns={dataset.data.columns}
             isPending={train.isPending}
+            imbalanceHint={imbalanceHint}
             onSubmit={async (input) => {
               setTaskType(input.task_type);
+              if (input.task_type === "classification" && input.metric) {
+                // Only classification re-ranks; regression always uses r2.
+                setActiveMetric(input.metric);
+              }
               const before = leaderboard.data?.length ?? 0;
               try {
                 const result = await train.mutateAsync(input);
@@ -105,7 +127,9 @@ export default function MlPage({ params }: { params: { id: string } }) {
                 <strong>{train.data.best?.name ?? "—"}</strong>
                 {train.data.best
                   ? ` (${primaryMetric}=${(
-                      train.data.best.metrics[primaryMetric] ?? 0
+                      typeof train.data.best.metrics[primaryMetric] === "number"
+                        ? (train.data.best.metrics[primaryMetric] as number)
+                        : 0
                     ).toFixed(4)})`
                   : ""}
                 .
