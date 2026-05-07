@@ -1,10 +1,12 @@
 "use client";
 
-import type { ExperimentOut } from "@/lib/types";
+import type { ExperimentOut, Metric } from "@/lib/types";
 
 interface LeaderboardProps {
   rows: ExperimentOut[];
-  primaryMetric: "accuracy" | "r2";
+  // Q5-ML-04 widened: classification can rank by accuracy / f1_macro /
+  // roc_auc; regression keeps r2.
+  primaryMetric: Metric;
   onSelect?: (row: ExperimentOut) => void;
   selectedId?: string | null;
 }
@@ -52,6 +54,7 @@ export function Leaderboard({
             <th className="px-3 py-2">#</th>
             <th className="px-3 py-2">Model</th>
             <th className="px-3 py-2 text-right">{primaryMetric}</th>
+            <th className="px-3 py-2 text-right">CV ± std</th>
             <th className="px-3 py-2 text-right">Train (s)</th>
             <th className="px-3 py-2">Artifact</th>
             <th className="px-3 py-2">Run at</th>
@@ -60,6 +63,8 @@ export function Leaderboard({
         <tbody className="divide-y">
           {sorted.map((row, idx) => {
             const primary = getMetric(row.metrics, primaryMetric);
+            const cvMean = getMetric(row.metrics, "cv_mean");
+            const cvStd = getMetric(row.metrics, "cv_std");
             const trainTime = getMetric(row.metrics, "train_time_sec");
             const isSelected = selectedId === row.id;
             return (
@@ -79,6 +84,11 @@ export function Leaderboard({
                 <td className="px-3 py-2 font-medium">{row.model_type}</td>
                 <td className="px-3 py-2 text-right font-mono">
                   {formatMetric(primary)}
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-xs">
+                  {cvMean !== null
+                    ? `${formatMetric(cvMean)} ± ${formatMetric(cvStd)}`
+                    : "—"}
                 </td>
                 <td className="px-3 py-2 text-right font-mono">
                   {formatMetric(trainTime)}
