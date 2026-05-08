@@ -27,6 +27,10 @@ polars==1.18.0
 pandas==2.2.3
 numpy==2.2.1
 openpyxl==3.1.5
+# polars.DataFrame.to_pandas() round-trips through pyarrow; not a hard
+# polars dep on its own, so pin it explicitly so EDA + ML test paths
+# don't blow up with ModuleNotFoundError.
+pyarrow>=14
 
 # ML
 scikit-learn==1.6.0
