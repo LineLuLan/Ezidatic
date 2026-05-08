@@ -641,8 +641,9 @@ Notes:
 - Backend formatting requires `ruff` + `black` on PATH. Activate the
   backend venv (§2) before committing `backend/**/*.py` files.
 - ESLint is intentionally **NOT** in pre-commit yet — `eslint-config-next`
-  14.2.18 has a peer-conflict with eslint v9 (Session 26 HANDOFF). Once
-  POL-02 (CI) lands, eslint will gate on push instead.
+  14.2.18 has a peer-conflict with eslint v9 (Session 26 HANDOFF). It is
+  also skipped in CI (§11) for the same reason; revisit once
+  `eslint-config-next` ships v9 support.
 - The hook **does NOT** auto-stage the formatter's edits — lint-staged
   re-stages modified files for you (the standard lint-staged flow). You
   end up with the formatted version inside the commit.
@@ -651,7 +652,53 @@ Notes:
 
 ---
 
-## 11. When to update this file
+## 11. CI (GitHub Actions)
+
+Two workflows live under `.github/workflows/`:
+
+| File | Trigger | What it runs |
+|------|---------|--------------|
+| `backend.yml` | Push to `backend`/`develop`/`main` or PR into `develop`/`main`, when `backend/**` or the workflow itself changes | `pip install -r requirements-dev.txt` → `pytest -q` on Python 3.11 (Ubuntu) |
+| `frontend.yml` | Push to `frontend`/`develop`/`main` or PR into `develop`/`main`, when `frontend/**`, root `package.json`/`pnpm-lock.yaml`/`pnpm-workspace.yaml`, or the workflow itself changes | `pnpm install --frozen-lockfile` (root) → `pnpm typecheck` + `pnpm build` (in `frontend/`) on Node 20 + pnpm 9 |
+
+Both workflows use `concurrency` to cancel in-progress runs on the
+same branch when a newer push lands. Both cache their package
+managers (`actions/setup-python` `cache: pip`, `actions/setup-node`
+`cache: pnpm`).
+
+`HUSKY=0` is set in `frontend.yml` to skip the root `prepare` script
+during CI install — git hooks are pointless on the runner and Husky
+9 honors this flag to no-op out.
+
+Excluded on purpose (track in TRACKING / Polish backlog):
+
+- **ESLint** — `eslint-config-next` 14.2.18 declares peer `eslint@^7
+  || ^8`, but the repo pins `eslint@9.17.0` (`pnpm install` warns).
+  Wiring `pnpm lint` now would fail at the env layer; bring it back
+  once `eslint-config-next` v9-compatible ships, or after pinning a
+  matching `eslint@8` and a v8-compatible `eslint-plugin-react-hooks`.
+- **Ruff / Black gate** — guarded by the pre-commit hook (§10) for
+  going-forward changes. Adding it to CI requires a one-time clean
+  pass on existing files; deferred to a follow-up POL.
+- **Vitest** — repo doesn't have Vitest wired yet (RULES §5
+  Sprint-2 commitment, deferred). Add a `frontend.yml` step once it
+  is.
+
+To exercise the workflows locally before pushing:
+
+```bash
+# Backend gate (matches CI exactly)
+cd backend && source .venv/Scripts/activate
+pytest -q
+
+# Frontend gate (matches CI exactly)
+pnpm install --frozen-lockfile      # at the repo root
+cd frontend && pnpm typecheck && pnpm build
+```
+
+---
+
+## 12. When to update this file
 
 Update `docs/WALKTHROUGH.md` whenever any of the following change:
 
