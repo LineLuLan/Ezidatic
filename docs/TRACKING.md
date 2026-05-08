@@ -20,7 +20,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 5 P1 ML merge) | Integration. Sprint 4 + Q5 P0 + all Q5-AGENT/EDA + Q5-ML-03/04 merged. |
-| `backend` | `36161a4` | Sprint 5 P1 ML BE (Q5-ML-03/04) — merged into develop. |
+| `backend` | `818d6e6` | Sprint 5 P2 EDA boxplot BE (Q5-EDA-02 BE half) — pushed. |
 | `frontend` | `e9614a2` | Sprint 5 P1 ML FE (Q5-ML-03/04) — merged into develop. |
 
 > Update the latest-commit cells with the short SHA after each push.
@@ -117,7 +117,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Q5-AGENT-03 | Chat | BE | SQL worker self-correction retry on tool failure | P1 | done (`498686c`) |
 | Q5-AGENT-04 | Chat | BE | Explain worker grounded with dataset profile | P1 | done (`498686c`) |
 | Q5-EDA-01 | EDA | BE | Datetime detection + time-series line chart | P1 | done (`9ab1af7`) |
-| Q5-EDA-02 | EDA | BE+FE | Box plot helper + renderer for skewed numerics | P2 | in_review (BE: pending FE) |
+| Q5-EDA-02 | EDA | BE+FE | Box plot helper + renderer for skewed numerics | P2 | in_review (BE: `818d6e6` / FE pending) |
 | Q5-EDA-03 | EDA | BE | Auto-scatter for top-correlated pairs | P2 | done (`9ab1af7`) |
 | Q5-ML-01 | AutoML | BE | Median/mode imputation (replace fillna(0)) | P0 | done (`d732e09`) |
 | Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | done (`d732e09`) |
