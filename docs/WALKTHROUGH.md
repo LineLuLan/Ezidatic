@@ -658,7 +658,7 @@ Two workflows live under `.github/workflows/`:
 
 | File | Trigger | What it runs |
 |------|---------|--------------|
-| `backend.yml` | Push to `backend`/`develop`/`main` or PR into `develop`/`main`, when `backend/**` or the workflow itself changes | `pip install -r requirements-dev.txt` → `pytest -q` on Python 3.11 (Ubuntu) |
+| `backend.yml` | Push to `backend`/`develop`/`main` or PR into `develop`/`main`, when `backend/**` or the workflow itself changes | `pip install -r requirements-dev.txt` → `pytest -q` on Python 3.13 (Ubuntu). 3.11 currently fails dependency resolution because `numpy==2.2.1` (pinned) conflicts with `langchain 0.3.13` (`numpy<2` for `python_version < "3.12"`) — restoring 3.11 is a Polish follow-up. |
 | `frontend.yml` | Push to `frontend`/`develop`/`main` or PR into `develop`/`main`, when `frontend/**`, root `package.json`/`pnpm-lock.yaml`/`pnpm-workspace.yaml`, or the workflow itself changes | `pnpm install --frozen-lockfile` (root) → `pnpm typecheck` + `pnpm build` (in `frontend/`) on Node 20 + pnpm 9 |
 
 Both workflows use `concurrency` to cancel in-progress runs on the
