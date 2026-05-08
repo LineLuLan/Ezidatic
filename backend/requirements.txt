@@ -11,6 +11,11 @@ email-validator==2.2.0
 # Database
 sqlalchemy==2.0.36
 asyncpg==0.30.0
+# greenlet is a transitive dep of SQLAlchemy[asyncio]. The conditional
+# install-requires marker on sqlalchemy 2.0.36 stops triggering on
+# Python 3.13, so we pin it explicitly to keep async sessions working
+# (`ValueError: greenlet library is required`).
+greenlet>=3
 alembic==1.14.0
 
 # Auth
@@ -22,6 +27,10 @@ polars==1.18.0
 pandas==2.2.3
 numpy==2.2.1
 openpyxl==3.1.5
+# polars.DataFrame.to_pandas() round-trips through pyarrow; not a hard
+# polars dep on its own, so pin it explicitly so EDA + ML test paths
+# don't blow up with ModuleNotFoundError.
+pyarrow>=14
 
 # ML
 scikit-learn==1.6.0
