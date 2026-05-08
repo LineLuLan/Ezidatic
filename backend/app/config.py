@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     ml_tune_n_iter: int = 5
     ml_tune_random_seed: int = 42
 
+    # LLM response cache (POL-05) — Redis-backed shared cache across
+    # providers. Disable for debugging or A/B comparisons that need
+    # fresh completions every call.
+    llm_cache_enabled: bool = True
+    llm_cache_ttl_seconds: int = 86400  # 24h
+
     # CORS
     cors_origins: str = "http://localhost:3000"
     # Optional regex matched against the request `Origin` header for
