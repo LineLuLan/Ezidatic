@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | `506103a` | POL-01 Husky + POL-02 CI (Python 3.13 + greenlet/pyarrow dep pins). **Q5 backlog 12/12** — P0/P1/P2 across agent + EDA + ML all merged. |
-| `backend` | `dc67804` | Propagation merge of develop (Session 30 POL-02 CI fixes). |
-| `frontend` | `093d66a` | Propagation merge of develop (Session 30 POL-02 CI fixes). |
+| `develop` | `fe058aa` | POL-03 §2.1 SupabaseStorage + §2.4 CORS regex merged from backend. Plan execution still in flight — deploy steps (§3) need credentials. |
+| `backend` | `83e1fa6` | POL-03 BE wave: storage ABC + SupabaseStorage + CORS regex + ruff ignore tune-up — merged into develop. |
+| `frontend` | `4b20785` | Last touched in Session 31 POL-03 plan propagate; needs Session 32 docs sync. |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -133,7 +133,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 |----|------|------|--------|
 | POL-01 | repo | Husky + lint-staged | done (`951a4a0`) |
 | POL-02 | repo | GitHub Actions CI | done (`32195de`) |
-| POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | pending — plan: `docs/modules/M_DEPLOY.md` |
+| POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | in_progress — code prereqs done (`83e1fa6`), deploy steps pending credentials. Plan: `docs/modules/M_DEPLOY.md` |
 | POL-04 | infra | UptimeRobot ping for Render | pending — covered in `docs/modules/M_DEPLOY.md` §3.5 |
 | POL-05 | BE | Redis cache for LLM responses | pending |
 | POL-06 | FE | Dark mode + a11y pass | pending |
