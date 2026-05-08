@@ -278,16 +278,59 @@ is already inlined at build time.
 
 ### 3.5 UptimeRobot — keep-alive (POL-04)
 
-1. Dashboard → New monitor.
-2. Type: **HTTP(s)**. URL:
-   `https://ezidatic-api.onrender.com/health`. Interval: **5 min**
-   (free tier minimum).
-3. Save. UptimeRobot will now ping every 5 min, defeating Render's
-   15-min sleep.
-4. Optional: configure email alerts for downtime.
+**Pre-req**: §3.3 Render deploy must be live. Verify
+`https://ezidatic-api.onrender.com/health` returns 200 in a browser
+or curl before continuing — if it 404s/500s, fix Render first
+(no point pinging a broken endpoint).
 
-After §3.5, POL-04 is also done. Flip both POL-03 and POL-04 status
-in `docs/TRACKING.md` in the same docs commit.
+1. **Sign up + verify email** at https://uptimerobot.com (free tier,
+   no card). Verify the email — UptimeRobot won't send alerts to
+   unverified addresses.
+2. **My Settings** → confirm time zone (alert timestamps use it).
+3. Dashboard → **+ New monitor**. Fill exactly:
+
+   | Field | Value | Why |
+   |-------|-------|-----|
+   | Monitor Type | **HTTP(s)** | Plain HTTP GET; Render's `/health` returns JSON 200. |
+   | Friendly Name | `Ezidatic API health` | Shows in alerts + dashboard rows. |
+   | URL (or IP) | `https://ezidatic-api.onrender.com/health` | Replace with your actual Render service URL. |
+   | Monitoring Interval | **5 minutes** | Free-tier minimum. Must be ≤ 14 min to defeat Render's 15-min idle sleep. |
+   | Monitor Timeout | 30 seconds | Renders cold start can take ~30s; longer timeout avoids false-positive downtime alerts on first wake. |
+   | HTTP Method | GET | Default. |
+   | Alert When | Status code is **NOT** 200 | Default for HTTP(s); just confirm. |
+
+4. Scroll to **Alert Contacts** → tick your verified email → Save.
+   (Optional: add a Slack / Discord webhook contact too. Free tier
+   allows up to 3 alert contacts per monitor.)
+5. Click **Create Monitor**. UptimeRobot fires the first ping within
+   ~60 seconds; the row turns green when it gets a 200.
+6. **Validation step** (do this before declaring POL-04 done):
+   - Wait ~10 minutes (≥ 2 ping cycles).
+   - Open the monitor → "Logs" tab. Should show 2+ "Up" entries.
+   - Open Render → service → Events. Should NOT show recent
+     "Service is sleeping" / "Spinning up" entries — the constant
+     5-min ping prevents the 15-min idle window from closing.
+   - **Expected**: median response time on the monitor row drops to
+     <300 ms within 30 minutes (Render is awake, hot path).
+
+**Anti-patterns**:
+- Don't lower the interval to 1 min hoping for "more uptime" — free
+  tier caps at 5 min; the form will reject 1 min.
+- Don't ping a non-`/health` route (e.g. `/`) — `/health` is the
+  only route guaranteed to be 200 even when no LLM keys are set.
+- Don't rely on Render's "Always On" toggle — that's a paid plan
+  feature; UptimeRobot is the free workaround.
+
+**Cost**: 0$/month. UptimeRobot free supports 50 monitors at 5-min
+intervals; we use 1.
+
+After §3.5 and the validation step pass, POL-04 is `done`. Flip both
+POL-03 and POL-04 statuses in `docs/TRACKING.md` in the same docs
+commit (since they ride together).
+
+**Rollback**: pause the monitor (don't delete) — UptimeRobot keeps
+the historical uptime % data. Render service then sleeps after 15
+min idle as before.
 
 ---
 
