@@ -14,6 +14,13 @@ from app.services.ml.base_estimator import BaseEstimator, ModelRegistry, TrainRe
 class LightGBMReg(BaseEstimator):
     name = "lightgbm_regressor"
     task = "regression"
+    # Q5-ML-05: randomized-search candidates.
+    param_distributions = {
+        "n_estimators": [100, 200, 400],
+        "learning_rate": [0.03, 0.05, 0.1, 0.2],
+        "num_leaves": [15, 31, 63],
+        "min_child_samples": [5, 10, 20],
+    }
 
     def fit(self, X_train: Any, y_train: Any, X_val: Any, y_val: Any) -> TrainResult:
         t0 = time.time()

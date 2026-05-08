@@ -17,6 +17,9 @@ class TrainResult:
 class BaseEstimator(ABC):
     name: str = "unnamed"
     task: str = "classification"  # "classification" | "regression"
+    # Q5-ML-05: subclasses set this dict to opt into randomized search.
+    # Each value is the candidate list for that hyperparameter.
+    param_distributions: dict[str, list[Any]] | None = None
 
     def __init__(self, **hyperparams: Any):
         self.hyperparams = hyperparams

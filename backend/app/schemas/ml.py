@@ -23,6 +23,11 @@ class TrainRequest(BaseModel):
     # metric isn't computable for the dataset (e.g. roc_auc on a multiclass
     # estimator without proba support).
     metric: Metric | None = None
+    # Q5-ML-05: opt-in randomized hyperparameter search per estimator.
+    # When True, each estimator with ``param_distributions`` runs a
+    # small inner CV to pick best params before the outer 5-fold CV.
+    # Default False keeps the fast path unchanged.
+    tune: bool = False
 
 
 class LeaderboardEntry(BaseModel):

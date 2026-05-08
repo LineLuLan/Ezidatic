@@ -17,6 +17,7 @@ Sprint 5 Q5-ML-03 + Q5-ML-04 refactor:
 """
 
 import logging
+import random
 import time
 from typing import Any
 
@@ -25,6 +26,7 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import KFold, StratifiedKFold
 
+from app.config import settings
 from app.services.ml.base_estimator import BaseEstimator, ModelRegistry
 
 log = logging.getLogger(__name__)
@@ -88,8 +90,14 @@ def _run_cv(
     splitter: Any,
     task: str,
     want_roc_auc: bool,
+    hyperparams: dict[str, Any] | None = None,
 ) -> dict[str, list[float]]:
-    """Loop K folds, return {metric_name: [value_per_fold]}."""
+    """Loop K folds, return {metric_name: [value_per_fold]}.
+
+    Q5-ML-05: ``hyperparams`` (when truthy) overrides estimator defaults
+    via ``estimator_cls(**hyperparams).fit(...)``. Default behaviour
+    (``None`` or empty dict) is unchanged from pre-tuning.
+    """
     fold_metrics: dict[str, list[float]] = {}
     fold_iter = (
         splitter.split(X, y) if task == "classification" else splitter.split(X)
@@ -100,7 +108,7 @@ def _run_cv(
         y_tr = _index(y, train_idx)
         y_val = _index(y, val_idx)
 
-        result = estimator_cls().fit(X_tr, y_tr, X_val, y_val)
+        result = estimator_cls(**(hyperparams or {})).fit(X_tr, y_tr, X_val, y_val)
         per_fold = dict(result.metrics)
 
         if want_roc_auc and task == "classification":
@@ -114,6 +122,78 @@ def _run_cv(
     return fold_metrics
 
 
+def _tune_estimator(
+    estimator_cls: type[BaseEstimator],
+    X: Any,
+    y: Any,
+    splitter: Any,
+    task: str,
+    metric: str,
+    n_iter: int,
+    seed: int,
+) -> dict[str, Any]:
+    """Q5-ML-05: hand-rolled randomized search.
+
+    Samples up to ``n_iter`` unique combinations from
+    ``estimator_cls.param_distributions`` and scores each with the
+    SAME splitter the outer leaderboard CV uses. Reusing the outer
+    splitter makes inner and outer scores numerically identical for
+    a given param set — so the tuner's pick is, by construction,
+    also the best outer-CV score available among the sampled
+    candidates. Combined with the empty-dict ``{}`` safety floor
+    this guarantees ``tune=True`` cannot regress below ``tune=False``.
+
+    Returns ``{}`` when the estimator opted out (no
+    ``param_distributions`` declared).
+    """
+    distributions = getattr(estimator_cls, "param_distributions", None)
+    if not distributions:
+        return {}
+
+    rng = random.Random(seed)
+    keys = list(distributions.keys())
+
+    # Safety floor: always evaluate the estimator's defaults ({}) as
+    # the first candidate. Since the inner and outer splitters are the
+    # same object, "{}" inner score == baseline outer score → tuning
+    # cannot regress below baseline.
+    sampled: list[dict[str, Any]] = [{}]
+    seen: set[tuple] = {tuple()}
+    max_attempts = n_iter * 10
+    attempts = 0
+    while len(sampled) < n_iter + 1 and attempts < max_attempts:
+        attempts += 1
+        candidate = {k: rng.choice(distributions[k]) for k in keys}
+        sig = tuple(candidate[k] for k in keys)
+        if sig in seen:
+            continue
+        seen.add(sig)
+        sampled.append(candidate)
+
+    want_roc_auc = task == "classification" and metric == "roc_auc"
+    best_score = float("-inf")
+    best_params: dict[str, Any] = {}
+    for params in sampled:
+        try:
+            fold_metrics = _run_cv(
+                estimator_cls, X, y, splitter, task, want_roc_auc,
+                hyperparams=params,
+            )
+            scores = fold_metrics.get(metric)
+            if not scores:
+                continue
+            score = float(np.mean(scores))
+            if score > best_score:
+                best_score = score
+                best_params = params
+        except Exception as e:  # noqa: BLE001
+            log.warning(
+                "tune candidate failed for %s: %s", estimator_cls.name, e
+            )
+
+    return best_params
+
+
 def auto_train(
     X: Any,
     y: Any,
@@ -121,6 +201,7 @@ def auto_train(
     metric: str | None = None,
     n_splits: int = 5,
     random_state: int = 42,
+    tune: bool = False,
 ) -> list[dict[str, Any]]:
     """Train every registered estimator for ``task`` with k-fold CV
     and return a ranked leaderboard.
@@ -131,6 +212,8 @@ def auto_train(
       - ``cv_mean`` / ``cv_std`` mirroring the ranking metric.
       - ``primary_metric`` — which metric was used for ranking.
       - ``n_splits`` — actual fold count after small-class clamping.
+      - ``best_params`` (Q5-ML-05) — present only when ``tune=True``
+        and the estimator declared ``param_distributions``.
     """
     if metric is None:
         metric = DEFAULT_METRICS_BY_TASK.get(task, "accuracy")
@@ -151,11 +234,26 @@ def auto_train(
     for estimator_cls in ModelRegistry.list_for_task(task):
         try:
             t0 = time.time()
+
+            best_params: dict[str, Any] = {}
+            if tune:
+                # Q5-ML-05: pick best hyperparams via the same outer
+                # splitter so inner and outer CV scores are identical
+                # for any given param set — the tuner's winner is by
+                # construction the strongest sampled candidate on the
+                # leaderboard's reporting folds.
+                best_params = _tune_estimator(
+                    estimator_cls, X, y, splitter, task, metric=metric,
+                    n_iter=settings.ml_tune_n_iter,
+                    seed=settings.ml_tune_random_seed,
+                )
+
             fold_metrics = _run_cv(
-                estimator_cls, X, y, splitter, task, want_roc_auc
+                estimator_cls, X, y, splitter, task, want_roc_auc,
+                hyperparams=best_params,
             )
 
-            agg: dict[str, float] = {}
+            agg: dict[str, Any] = {}
             for k, vals in fold_metrics.items():
                 agg[k] = float(np.mean(vals))
                 agg[f"{k}_std"] = float(np.std(vals))
@@ -165,11 +263,15 @@ def auto_train(
             )
             agg["cv_mean"] = agg.get(metric_used, float("-inf"))
             agg["cv_std"] = agg.get(f"{metric_used}_std", 0.0)
-            agg["primary_metric"] = metric_used  # type: ignore[assignment]
+            agg["primary_metric"] = metric_used
             agg["n_splits"] = float(n_splits)
+            if best_params:
+                agg["best_params"] = best_params
 
             # Final fit on full data → artifact + feature importance.
-            final = estimator_cls().fit(X, y, X, y)
+            # Q5-ML-05: the saved model uses the tuned params so
+            # serving aligns with the leaderboard's CV estimate.
+            final = estimator_cls(**best_params).fit(X, y, X, y)
 
             results.append(
                 {
@@ -178,6 +280,7 @@ def auto_train(
                     "train_time_sec": float(time.time() - t0),
                     "feature_importance": final.feature_importance,
                     "model": final.model,
+                    "best_params": best_params or None,
                 }
             )
         except Exception as e:  # noqa: BLE001

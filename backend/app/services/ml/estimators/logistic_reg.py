@@ -18,6 +18,13 @@ class LogisticReg(BaseEstimator):
 
     name = "logistic_regression"
     task = "classification"
+    # Q5-ML-05: randomized-search candidates. Solver/penalty kept as
+    # singletons (l1 needs a different solver — out of P2 scope).
+    param_distributions = {
+        "C": [0.1, 0.5, 1.0, 2.0, 4.0],
+        "penalty": ["l2"],
+        "solver": ["lbfgs"],
+    }
 
     def fit(self, X_train: Any, y_train: Any, X_val: Any, y_val: Any) -> TrainResult:
         t0 = time.time()

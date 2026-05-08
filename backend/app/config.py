@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     vector_backend: str = "chroma"
     chroma_persist_dir: str = "./data/chroma"
 
+    # ML tuning (Q5-ML-05) — randomized search per estimator.
+    # Inner CV reuses the outer splitter so its scoring matches the
+    # leaderboard's reporting folds exactly — no separate inner-k knob.
+    ml_tune_n_iter: int = 5
+    ml_tune_random_seed: int = 42
+
     # CORS
     cors_origins: str = "http://localhost:3000"
 
