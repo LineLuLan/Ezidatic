@@ -23,30 +23,24 @@ export function MessageList({ messages, streaming }: Props) {
     );
   }
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="log" aria-live="polite" aria-relevant="additions">
       {messages.map((m) => (
         <MessageBubble key={m.id} message={m} />
       ))}
       {streaming.active && (
-        <div className="rounded-lg border bg-card p-4 space-y-2">
+        <div className="bg-card space-y-2 rounded-lg border p-4">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-medium uppercase text-muted-foreground">
-              assistant
-            </span>
+            <span className="font-medium uppercase text-muted-foreground">assistant</span>
             <ProviderBadge provider={streaming.providerUsed} />
             {streaming.intent && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase text-muted-foreground">
                 {streaming.intent}
               </span>
             )}
-            <span className="ml-auto animate-pulse text-muted-foreground">
-              streaming…
-            </span>
+            <span className="ml-auto animate-pulse text-muted-foreground">streaming…</span>
           </div>
           {streaming.text && (
-            <p className="whitespace-pre-wrap text-sm leading-6">
-              {streaming.text}
-            </p>
+            <p className="whitespace-pre-wrap text-sm leading-6">{streaming.text}</p>
           )}
           {streaming.toolCalls.length > 0 && (
             <div className="space-y-2">
@@ -57,9 +51,7 @@ export function MessageList({ messages, streaming }: Props) {
           )}
         </div>
       )}
-      {streaming.error && (
-        <p className="text-sm text-destructive">{streaming.error}</p>
-      )}
+      {streaming.error && <p className="text-sm text-destructive">{streaming.error}</p>}
     </div>
   );
 }
