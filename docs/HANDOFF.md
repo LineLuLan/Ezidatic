@@ -5,6 +5,107 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 32: POL-03 §2.1 SupabaseStorage + §2.4 CORS (BE wave)
+
+- **Branch**: `backend` then merged into `develop`. 1 BE commit
+  (`83e1fa6`) on top of Session 31's tip (`c1d0fa9`), then merge
+  commit `fe058aa` on develop.
+- **Done — POL-03 status `pending` → `in_progress`** (deploy steps
+  in `M_DEPLOY.md` §3 still need user credentials):
+  - **NEW backend modules**:
+    - `backend/app/services/storage/base.py` — `StorageBackend` ABC
+      with abstract `path_for`, `write_bytes`, `read_bytes`,
+      `path_for_preprocessed`, `models_dir`, `path_for_model` plus a
+      concrete no-op default for `upload_local`. Path-shaped surface
+      so call sites stay backend-agnostic.
+    - `backend/app/services/storage/supabase.py` — `SupabaseStorage`
+      uses `supabase-py` 2.x. Maintains a local-disk mirror under
+      `Settings.local_storage_dir` for hot reads, write-throughs to
+      a Storage bucket on every `write_bytes` / explicit
+      `upload_local`. Cold reads on another machine download on
+      miss. Lazy-imported via the `__init__.py` registry so dev runs
+      with `STORAGE_BACKEND=local` never load `supabase-py`.
+    - `backend/tests/test_storage.py` — 6 unit tests:
+      `get_storage()` defaults to local, dispatches to supabase via a
+      patched `app.services.storage.supabase.create_client`,
+      raises on unknown backend, `SupabaseStorage()` requires creds,
+      `LocalStorage.upload_local` is a no-op, `read_bytes`
+      round-trips. None hit real Supabase.
+  - **MODIFIED**:
+    - `backend/app/services/storage/local.py` — `LocalStorage` now
+      subclasses the new ABC; behavior unchanged.
+    - `backend/app/services/storage/__init__.py` — `get_storage()`
+      now dispatches on `settings.storage_backend`. Lazy import for
+      the `supabase` branch.
+    - `backend/app/api/v1/preprocessing.py` + `ml.py` — added
+      `storage.upload_local(path)` after `polars.write_csv` /
+      `joblib.dump`. No-op on `LocalStorage`; uploads to Supabase
+      Storage on the prod path.
+    - `backend/app/config.py` — new fields: `supabase_url`,
+      `supabase_service_role_key`, `supabase_bucket` (default
+      `"datasets"`), `cors_origin_regex` (empty by default).
+    - `backend/app/main.py` — `CORSMiddleware` honors
+      `cors_origin_regex` (used in prod for `*.vercel.app` previews).
+    - `backend/.env.example` — adds the 4 new env vars + an inline
+      example regex for Vercel previews.
+    - `backend/requirements.txt` — `supabase>=2.10,<3`. Pin range
+      because supabase-py minor versions are API-stable within 2.x.
+    - `backend/pyproject.toml` — ruff `ignore` extends to **B008**
+      (FastAPI `Depends(...)` in defaults), **N803/N806** (sklearn
+      `X` / SQLAlchemy `Session` capital naming), **B905** (`zip()`
+      strict). All four were pre-existing in the codebase but only
+      now trip the pre-commit hook because POL-01 introduced the
+      first ruff gate on staged BE files.
+    - `docs/WALKTHROUGH.md` — clarifies Supabase env vars are
+      dev-optional, adds `test_storage.py` row, bumps test count
+      71 → 77.
+- **CI**: backend run `25565796777` on `83e1fa6` — `pytest (Python
+  3.13)=success`. All 77 tests green on Ubuntu + Python 3.13.
+- **State**: working tree on `develop` clean after the merge
+  (`fe058aa`). backend already pushed (`83e1fa6`); develop pushed.
+  frontend still on Session 31 tip (`4b20785`) — propagate this
+  session's docs sync next.
+- **Tests at session end**: BE 77/77 ✅ (CI-verified). Six new tests
+  cover the dispatch + ABC; no real Supabase calls.
+- **Next session**: two paths.
+  1. **Continue POL-03 execution** — user does §0 account setup
+     (Supabase + Upstash + Render + Vercel + UptimeRobot + LLM keys),
+     paste credentials into Render/Vercel dashboards, then walk
+     through `M_DEPLOY.md` §3 step-by-step. Code is ready; I cannot
+     execute dashboard clicks.
+  2. **Skip-ahead** to POL-05 (Redis cache for LLM, BE-only) or
+     POL-06 (Dark mode + a11y, FE-only). Either is parallelizable.
+- **Blockers**: For the "continue" path, the only blocker is the
+  external account credentials. For "skip-ahead", none.
+- **Notes**:
+  - **Why path-shaped ABC, not URI-shaped**: Existing call sites
+    (parsers, polars, joblib) consume `Path` objects directly.
+    Refactoring 4 call sites to handle URI strings would have been a
+    much larger diff with little upside on the demo timeline. The
+    `local-disk mirror` design lets `SupabaseStorage` honor the
+    `Path` contract while still uploading remotely.
+  - **Why ruff ignore changes are scoped here**: All four added
+    ignores describe project-convention vs ruff-default mismatches,
+    not bugs. They surfaced because POL-01's pre-commit hook
+    introduced the first ruff gate on staged BE code, and POL-03's
+    BE wave is the first non-trivial BE commit since. Adding
+    targeted `# noqa` would have noised every FastAPI handler. CI
+    `pytest -q` continues to be the actual correctness gate.
+  - **`upload_local` no-op trick** keeps the call sites uniform:
+    after a `polars.write_csv` / `joblib.dump`, callers always invoke
+    `storage.upload_local(path)`. On `LocalStorage` this returns
+    immediately; on `SupabaseStorage` it pushes to the bucket. No
+    branching on backend type at the call site.
+  - **Lazy import for `supabase-py`** keeps dev environments lean —
+    `from app.services.storage.supabase import SupabaseStorage` only
+    runs when `STORAGE_BACKEND=supabase` is in effect. Tests patch
+    `app.services.storage.supabase.create_client` (post-import
+    binding), not `supabase.create_client`, so the construction path
+    is verifiable without the `supabase-py` SDK actually doing
+    anything.
+
+---
+
 ## 2026-05-08 — Session 31: POL-03 deploy plan (planning only, no execute)
 
 - **Branch**: `develop` — 1 docs commit on top of Session 30b's tip

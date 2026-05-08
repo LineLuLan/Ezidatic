@@ -10,7 +10,13 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RET"]
-ignore = ["E501"]  # line-length handled by black
+ignore = [
+  "E501",  # line-length handled by black
+  "B008",  # `Depends(...)` in default args is the canonical FastAPI pattern
+  "N803",  # `X` arg name is the sklearn convention for feature matrices
+  "N806",  # `X` / `Session` local-var caps follow sklearn/SQLAlchemy idioms
+  "B905",  # `zip()` strict= adds noise inside guaranteed-aligned iterators
+]
 
 [tool.black]
 line-length = 100
