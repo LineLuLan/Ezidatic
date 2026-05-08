@@ -23,7 +23,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11"]
+        # 3.13 only — requirements.txt pins numpy==2.2.1 which conflicts with
+        # langchain 0.3.13 (numpy<2) for python_version < "3.12". Restoring 3.11
+        # support is a separate Polish item (loosen pins or upgrade langchain).
+        python-version: ["3.13"]
     defaults:
       run:
         working-directory: backend
