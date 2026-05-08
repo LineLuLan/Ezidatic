@@ -5,6 +5,76 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 31: POL-03 deploy plan (planning only, no execute)
+
+- **Branch**: `develop` — 1 docs commit on top of Session 30b's tip
+  (`f3991b4`). No code or infra change.
+- **Done — POL-03 planning artifact** (status stays `pending` because
+  nothing was deployed; commit hash will fill in once execution
+  happens):
+  - **NEW**: `docs/modules/M_DEPLOY.md` — full free-tier deploy
+    runbook covering Render (BE), Vercel (FE), Supabase (Postgres +
+    Storage + pgvector), Upstash (Redis), and UptimeRobot (POL-04
+    keep-alive). 9 sections:
+    1. **§0 Prerequisites** — 9 accounts to create with sign-up URLs
+       + free-tier ceilings + estimated 45-60 min setup time.
+    2. **§1 Service map** — dev → prod table + ASCII data-flow
+       diagram.
+    3. **§2 Code changes required** — pre-deploy slices that must
+       land on `backend` first. Five sub-sections cover SupabaseStorage
+       backend (~80 LOC, ~3h), pgvector wiring (MVP path keeps
+       Chroma-on-disk; clean path defers), Redis cache layer (POL-05
+       ride-along), CORS regex for Vercel previews, and the FE
+       `NEXT_PUBLIC_API_URL` switch.
+    4. **§3 Step-by-step deploy procedure** — 5 sub-sections with
+       click-by-click instructions per service, env-var matrices,
+       and explicit warnings for the gotchas (e.g. "go BACK to Render
+       to update CORS_ORIGINS after Vercel deploys, don't skip").
+    5. **§4 End-to-end smoke** — 6 curl/UI steps mirroring
+       WALKTHROUGH §7.
+    6. **§5 Risks + mitigations** — 10-row table including the §2.10
+       blocker note that storage backend code MUST land before §3.
+    7. **§6 Order of execution** — 11-step checklist with time
+       estimates totalling ~8 hours when credentials are in hand.
+    8. **§7 Rollback plan** — per-service.
+    9. **§8 Out of scope** + **§9 References**.
+- **MODIFIED**: `docs/TRACKING.md` — POL-03 + POL-04 rows now point
+  at the plan doc with a "pending — plan: …" note. Status stays
+  `pending` until execution happens.
+- **State**: working tree on `develop` clean after this commit.
+  No CI workflow trigger (paths-filter excludes `docs/**`).
+- **Tests at session end**: not run (docs only).
+- **Next session**: two valid paths.
+  1. **Execute POL-03** when the user has credentials. Per
+     `M_DEPLOY.md` §6, that means: §0 account setup → §2.1 Supabase
+     Storage code on `backend` → §2.4 CORS code → merge → §3 deploy
+     steps. Estimate ~8 hours focused work.
+  2. **Skip ahead** to a non-blocking Polish item — POL-05 (Redis
+     cache for LLM, BE-only) or POL-06 (Dark mode + a11y, FE-only)
+     can land in parallel without external accounts.
+- **Blockers**: For execute-path, blocker is account setup. For
+  skip-ahead, none.
+- **Notes**:
+  - **Plan-only intent**: user explicitly chose "POL-03: Plan deploy
+    (không execute)" via the auto-mode question this session. No
+    secrets generated, no services provisioned.
+  - **POL-04 absorbed into POL-03 plan**: the UptimeRobot ping is a
+    5-minute dashboard task that strictly depends on Render's URL
+    existing. Bundling into the same runbook avoids context-switch
+    when execution happens.
+  - **POL-05 (Redis cache) was teased** as a §2.3 ride-along — if
+    execute-path picks POL-03 next, doing POL-05 in the same BE wave
+    is cheap. If skip-ahead picks POL-05 standalone, the M_DEPLOY
+    §2.3 design notes still apply.
+  - **Why no immediate WALKTHROUGH update**: POL-03 plan doesn't
+    introduce new dev commands yet. WALKTHROUGH gets its update
+    *during* execution (per RULES §4 walkthrough-must-be-current).
+  - **Why under `docs/modules/M_DEPLOY.md` (not `docs/POL-03.md` or
+    similar)**: matches existing convention (M0_AUTH, M1_INGESTION,
+    …, M_QUALITY). Treats deploy as a module like the others.
+
+---
+
 ## 2026-05-08 — Session 30b: POL-02 CI stabilisation (3 dep fixes)
 
 - **Branch**: `develop` — 3 follow-up commits on top of Session 30's
