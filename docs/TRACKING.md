@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | `32195de` | POL-01 Husky + lint-staged + POL-02 GitHub Actions CI landed cross-cutting on develop. **Q5 backlog 12/12** — P0/P1/P2 across agent + EDA + ML all merged. |
-| `backend` | `55cb219` | Sprint 5 P2 ML tuning BE (Q5-ML-05) — merged into develop. |
-| `frontend` | `7bfd8cd` | Sprint 5 P2 EDA boxplot FE (Q5-EDA-02 FE half) — merged into develop. |
+| `develop` | `506103a` | POL-01 Husky + POL-02 CI (Python 3.13 + greenlet/pyarrow dep pins). **Q5 backlog 12/12** — P0/P1/P2 across agent + EDA + ML all merged. |
+| `backend` | `dc67804` | Propagation merge of develop (Session 30 POL-02 CI fixes). |
+| `frontend` | `093d66a` | Propagation merge of develop (Session 30 POL-02 CI fixes). |
 
 > Update the latest-commit cells with the short SHA after each push.
 

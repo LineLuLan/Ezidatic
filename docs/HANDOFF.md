@@ -5,6 +5,68 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 30b: POL-02 CI stabilisation (3 dep fixes)
+
+- **Branch**: `develop` — 3 follow-up commits on top of Session 30's
+  initial POL-02 ship (`32195de`):
+  1. `553a104` — `ci(backend): switch to Python 3.13 to dodge
+     numpy/langchain pin conflict`. Workflow change only.
+  2. `01942da` — `fix(deps): pin greenlet>=3 in requirements.txt`.
+  3. `506103a` — `fix(deps): pin pyarrow>=14 for polars->pandas
+     round-trip in tests`.
+- **Why**: the first POL-02 push failed CI **3 times in a row**, each
+  surfacing a different latent dep issue that the dev machine masked:
+  1. **Python 3.11 + langchain 0.3.13**: `numpy==2.2.1` is incompatible
+     because langchain caps numpy<2 for `python_version<"3.12"`. The
+     repo pinning + WALKTHROUGH "3.11 or 3.13" claim were aspirational
+     — only 3.13 actually resolves. Switched CI matrix to 3.13 (and
+     documented the regression in WALKTHROUGH §11).
+  2. **SQLAlchemy 2.0.36 + Python 3.13**: greenlet's conditional
+     install marker no longer matches on 3.13, so `await
+     engine.connect()` blew up with `ValueError: greenlet library
+     required`. Pinned `greenlet>=3` explicitly.
+  3. **polars 1.18 + Python 3.13**: `polars.DataFrame.to_pandas()`
+     routes through pyarrow when available but doesn't declare it as
+     a hard dep. Clean CI image had no pyarrow → 16 EDA/ML test
+     failures with `ModuleNotFoundError: No module named 'pyarrow'`.
+     Pinned `pyarrow>=14`.
+- **Final CI run**: `25557798839` on `506103a` — `pytest (Python
+  3.13)=success`. All 71 tests green on a clean Ubuntu image.
+- **Propagation**: develop → backend (`dc67804`) → frontend
+  (`093d66a`), both pushed. The backend branch's merge fires its own
+  backend CI run as a sanity check (CI was in-flight at session
+  close — should pass identically since the merge content is
+  byte-for-byte the develop fix).
+- **Active-branches table refresh**: develop bumped to `506103a`,
+  side branches to their respective propagation merges.
+- **State**: working tree on `develop` clean. All 3 active branches
+  pushed.
+- **Tests at session end**: BE 71/71 ✅ (CI-verified on Ubuntu +
+  Python 3.13 with the new pins). FE typecheck + build green
+  (locally + CI).
+- **Next session**: POL-03 (Deploy — Render + Vercel + Supabase +
+  Upstash). Heaviest remaining item; needs user account setup +
+  secret promotion plan, will likely want a dedicated planning
+  session.
+- **Blockers**: None.
+- **Notes / lessons**:
+  - **Three latent dep issues hiding behind dev-machine luck**: the
+    repo had been working locally only because something else in the
+    install graph happened to drag pyarrow + greenlet in transitively,
+    and the dev was on 3.13 (not the documented 3.11). CI on a clean
+    image surfaced all three on the same day. **Net effect**: BE
+    install is now genuinely reproducible.
+  - **WALKTHROUGH §0 still says "3.11 or 3.13"**: kept as-is because
+    fixing 3.11 (loosening numpy or bumping langchain) is a separate
+    follow-up. WALKTHROUGH §11 documents the 3.11-broken status
+    until that work happens.
+  - **Husky still skipped in CI** via `HUSKY=0` in `frontend.yml` —
+    no need to install git hooks on the runner. Confirmed working
+    end-to-end (pnpm install --frozen-lockfile + typecheck + build
+    all green on the clean image).
+
+---
+
 ## 2026-05-08 — Session 30: POL-02 GitHub Actions CI (Polish backlog #2)
 
 - **Branch**: `develop` — 2 cross-cutting commits on top of Session
