@@ -1,0 +1,5 @@
+# Force LF endings for shell scripts and Husky hooks so they remain
+# executable when checked out on Linux/macOS CI runners (Windows clones
+# still work via Git for Windows' bash.exe).
+.husky/* text eol=lf
+*.sh text eol=lf

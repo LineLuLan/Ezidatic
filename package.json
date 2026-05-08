@@ -1,0 +1,24 @@
+{
+  "name": "ezidatic-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ezidatic monorepo root — owns Husky pre-commit hooks and lint-staged config across backend (Python) and frontend (Next.js).",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "15.2.10",
+    "prettier": "3.4.2",
+    "prettier-plugin-tailwindcss": "0.6.9"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx,js,jsx,json,md,css}": [
+      "prettier --write"
+    ],
+    "backend/**/*.py": [
+      "ruff check --fix",
+      "black"
+    ]
+  }
+}
