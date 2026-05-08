@@ -18,6 +18,11 @@ asyncpg==0.30.0
 greenlet>=3
 alembic==1.14.0
 
+# Storage (prod backend — Supabase Storage; lazy-imported, dev tier is
+# unaffected). 2.10 is the current 2.x line as of repo era; range pin
+# for minor patches.
+supabase>=2.10,<3
+
 # Auth
 python-jose[cryptography]==3.3.0
 bcrypt==4.2.1

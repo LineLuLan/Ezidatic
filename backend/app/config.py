@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     local_storage_dir: str = "./data/uploads"
     max_file_size_mb: int = 50
 
+    # Supabase Storage (only required when storage_backend == "supabase")
+    supabase_url: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_bucket: str = "datasets"
+
     # LLM
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
@@ -57,6 +62,10 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: str = "http://localhost:3000"
+    # Optional regex matched against the request `Origin` header for
+    # preview deployments (e.g. Vercel previews on `*.vercel.app`).
+    # Empty string disables regex matching.
+    cors_origin_regex: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

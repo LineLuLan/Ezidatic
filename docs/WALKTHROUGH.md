@@ -104,8 +104,14 @@ locally:
 - `DATABASE_URL=postgresql+asyncpg://ezidatic:ezidatic@localhost:5432/ezidatic`
   — pointed at the `docker compose` Postgres.
 - `STORAGE_BACKEND=local`, `LOCAL_STORAGE_DIR=./data/uploads`,
-  `MAX_FILE_SIZE_MB=50`.
+  `MAX_FILE_SIZE_MB=50`. Set `STORAGE_BACKEND=supabase` only for
+  production; the `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` /
+  `SUPABASE_BUCKET` keys stay empty in dev (full prod recipe in
+  `docs/modules/M_DEPLOY.md`).
 - LLM provider keys (`GROQ_API_KEY`, …) are blank — fine until Sprint 4.
+- `CORS_ORIGINS=http://localhost:3000` covers the local FE; the new
+  optional `CORS_ORIGIN_REGEX` is only used in prod for Vercel
+  preview deployments.
 
 > **Skip this step if you only want to run pytest.** The test suite uses
 > in-memory SQLite (see §5), so `.env` isn't required for tests.
@@ -252,8 +258,9 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_ml.py` | 16 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop**, **5-fold CV reporting (Q5-ML-03)**, **metric=f1_macro re-ranks leaderboard (Q5-ML-04)**, **imbalanced fixture flags `class_balance`**, **`tune=True` persists best_params (Q5-ML-05)**, **default `tune=False` omits best_params**, **tune ≥ baseline on ≥2/3 estimators (200-row fixture)** |
 | `tests/test_chat.py` | 13 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404, **SQL retry on first-attempt failure (Q5-AGENT-03)**, **both-fail surfaces both errors**, **EXPLAIN branch ships grounded profile to LLM (Q5-AGENT-04)** |
 | `tests/test_agent_quality.py` | 12 | **Q5-AGENT-01** ROUTER_PROMPT few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets. **Q5-AGENT-04** `build_grounded_context` carries real stats, prioritises keyword-matched columns, handles empty profile, truncates to budget |
+| `tests/test_storage.py` | 6 | **POL-03** `get_storage()` dispatch (local default, supabase via patched `create_client`, unknown backend raises), `SupabaseStorage` requires creds, `LocalStorage.upload_local` is a no-op, round-trip read/write |
 
-Total: **71** as of Sprint 5 (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE → 68 after Q5-EDA-02 BE → 71 after Q5-ML-05 BE).
+Total: **77** as of POL-03 BE wave (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE → 68 after Q5-EDA-02 BE → 71 after Q5-ML-05 BE → 77 after POL-03 storage tests).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
