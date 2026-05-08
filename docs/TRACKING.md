@@ -19,9 +19,9 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | `fe058aa` | POL-03 §2.1 SupabaseStorage + §2.4 CORS regex merged from backend. Plan execution still in flight — deploy steps (§3) need credentials. |
-| `backend` | `83e1fa6` | POL-03 BE wave: storage ABC + SupabaseStorage + CORS regex + ruff ignore tune-up — merged into develop. |
-| `frontend` | `4b20785` | Last touched in Session 31 POL-03 plan propagate; needs Session 32 docs sync. |
+| `develop` | `9314794` | POL-05 + POL-06 merged. POL-03 §3 deploy steps still pending user credentials. |
+| `backend` | `7535398` | POL-05 Redis cache for LLM (5 cache tests, 82/82 CI). |
+| `frontend` | `e8c6dc2` | POL-06 dark mode + a11y baseline (next-themes, ThemeToggle, skip link, aria-live MessageList). |
 
 > Update the latest-commit cells with the short SHA after each push.
 
@@ -135,7 +135,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 | POL-02 | repo | GitHub Actions CI | done (`32195de`) |
 | POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | in_progress — code prereqs done (`83e1fa6`), deploy steps pending credentials. Plan: `docs/modules/M_DEPLOY.md` |
 | POL-04 | infra | UptimeRobot ping for Render | pending — covered in `docs/modules/M_DEPLOY.md` §3.5 |
-| POL-05 | BE | Redis cache for LLM responses | pending |
-| POL-06 | FE | Dark mode + a11y pass | pending |
+| POL-05 | BE | Redis cache for LLM responses | done (`7535398`) |
+| POL-06 | FE | Dark mode + a11y pass | done (`e8c6dc2`) |
 | POL-07 | docs | Final report + slides | pending |
 | POL-08 | BE | SQLite-portable migrations (no-Docker dev path) | done (`658aa99`) |

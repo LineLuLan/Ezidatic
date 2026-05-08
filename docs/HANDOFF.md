@@ -5,6 +5,111 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 33: POL-05 LLM cache + POL-06 dark mode + a11y (parallel)
+
+- **Branches**: `backend` then `frontend`, both merged into `develop`
+  in this session. Final develop tip `9314794`.
+- **Done — POL-05 (Redis cache for LLM responses)** — backend commit
+  `7535398`, merge `1fe1e85` on develop. Status `done`:
+  - **NEW** `backend/app/services/agents/cache.py` — `LlmCache`
+    namespace. `key_for(messages, **kwargs)` sha256-hashes the input
+    envelope (messages + temperature + max_tokens + response_format).
+    `get` / `set` JSON-encode payloads. Provider deliberately
+    excluded from the key so the same input shares the cache across
+    Groq/Gemini/OpenRouter/Ollama (saves cost on free-tier quotas);
+    the original responder is preserved inside the *value* so
+    `provider_used` still surfaces provenance.
+  - **MODIFIED** `backend/app/services/agents/llm_adapter.py` —
+    `LLMAdapter.invoke` and `.stream` now check the cache first.
+    Stream cache HIT yields the cached content as a single delta
+    (UX: client sees one chunk; SSE handler unchanged). Stream cache
+    MISS forwards chunks as they arrive AND accumulates them; after
+    the generator exhausts, the full text + `last_stream_usage` are
+    persisted with TTL.
+  - **MODIFIED** `backend/app/config.py` — `llm_cache_enabled`
+    (kill-switch) + `llm_cache_ttl_seconds` (24h default).
+  - **MODIFIED** `backend/.env.example`, `backend/requirements.txt`
+    (`redis>=5,<8`), `backend/requirements-dev.txt`
+    (`fakeredis>=2,<3`).
+  - **NEW** `backend/tests/test_llm_cache.py` — 5 cases via fakeredis
+    monkeypatched into the singleton. Covers invoke hit/miss,
+    kill-switch, stream hit, stream miss caches after exhaust. CI
+    run `25568166926` on `7535398` — 82/82 ✅.
+- **Done — POL-06 (Dark mode + a11y baseline)** — frontend commit
+  `e8c6dc2`, merge `9314794` on develop. Status `done`:
+  - Tailwind already had `darkMode: ["class"]` + full HSL `:root` +
+    `.dark` token sets in `globals.css`; all components use semantic
+    classes (no hardcoded hex). Dark mode just needed a provider +
+    toggle.
+  - **NEW** `frontend/components/theme-provider.tsx` — typed
+    re-export of `next-themes`'s ThemeProvider so the rest of the
+    app imports from a single internal path.
+  - **NEW** `frontend/components/theme-toggle.tsx` — Sun/Moon icon
+    button with mounted-guard to avoid SSR/CSR icon mismatch.
+    `aria-label` flips to "Switch to dark/light mode".
+  - **NEW** `frontend/components/skip-to-content.tsx` — visually
+    hidden link that becomes visible on focus, jumps to
+    `<main id="content">`.
+  - **MODIFIED** `frontend/app/layout.tsx` — wraps body in
+    `ThemeProvider` (`attribute="class"`, `defaultTheme="system"`,
+    `enableSystem`, `disableTransitionOnChange`) with `SkipToContent`
+    above `QueryProvider`.
+  - **MODIFIED** `frontend/app/(dashboard)/layout.tsx` — nav gains
+    `aria-label="Primary"` + `focus-visible` ring; `<main>` gains
+    `id="content"`; sidebar bottom now hosts a "Theme" row with the
+    toggle.
+  - **MODIFIED** `frontend/app/(auth)/layout.tsx` — `<main
+    id="content">` so the skip link works on auth pages too.
+  - **MODIFIED** `frontend/components/chat/MessageList.tsx` — list
+    container gains `role="log"` + `aria-live="polite"` so screen
+    readers announce new SSE deltas (`aria-relevant="additions"`).
+  - **MODIFIED** `frontend/components/chat/SessionSidebar.tsx` —
+    `<aside>` gains `aria-label="Chat sessions"`.
+  - **MODIFIED** `frontend/package.json` + root `pnpm-lock.yaml` —
+    `next-themes ^0.4.6`.
+  - CI run `25568638852` on `e8c6dc2` — typecheck + build green
+    (9 routes).
+- **Active-branches table**: develop `9314794`, backend `7535398`,
+  frontend `e8c6dc2`.
+- **State**: working tree on `develop` clean after both merges.
+  Side branches still need this session's TRACKING/HANDOFF docs sync
+  (post-commit propagation merge).
+- **Tests at session end**: BE 82/82 ✅ (CI). FE typecheck + build
+  green locally + CI.
+- **Next session**: only Polish items left are POL-03 §3 (deploy
+  walkthrough, needs user credentials), POL-04 (UptimeRobot,
+  ride-along with POL-03), and POL-07 (final report + slides). When
+  user has Render/Vercel/Supabase/Upstash creds, walk through
+  `docs/modules/M_DEPLOY.md` §3 steps.
+- **Blockers**: Only POL-03 §3 deploy steps remain blocked on user
+  credentials.
+- **Notes**:
+  - **Why provider excluded from POL-05 cache key**: same input
+    (messages + temp + max_tokens) yields interchangeable cached
+    responses across providers. A cached Groq answer is served even
+    when Groq is later down — by design, faster + cheaper. If a
+    future feature needs provider-specific caching, flip 1 line in
+    `LlmCache.key_for` to include provider.
+  - **Streaming cache HIT emits 1 chunk**: deliberate. Client SSE
+    handler treats single delta same as multi-delta; UX feels
+    instant on cache hit. Could chunk artificially for "natural
+    streaming feel" but skipped — demo grade.
+  - **Why `next-themes` over Zustand**: handles SSR + system-mode +
+    localStorage persistence + zero-flash theme load out of the box.
+    A custom Zustand store would have to reimplement those three.
+  - **All Tailwind components were already dark-ready**: explore
+    confirmed every component uses semantic classes (`bg-background`,
+    `text-foreground`, `bg-primary/5`, …) and even Recharts/SVG
+    code uses `hsl(var(--primary))` strings (CSS variables are
+    reactive across `.dark`). Net effect: dark mode shipped without
+    touching any color in any component.
+  - **a11y depth = WCAG-AA baseline**: skip link + semantic
+    landmarks (`<main>`, `<nav>`, `<aside>` with `aria-label`) +
+    aria-live chat + focus rings. Going deeper (full keyboard tab
+    sweep, screen-reader scripts, axe-core CI) is POL-07 scope.
+
+---
+
 ## 2026-05-08 — Session 32: POL-03 §2.1 SupabaseStorage + §2.4 CORS (BE wave)
 
 - **Branch**: `backend` then merged into `develop`. 1 BE commit
