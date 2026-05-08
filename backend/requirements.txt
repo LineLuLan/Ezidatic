@@ -23,6 +23,11 @@ alembic==1.14.0
 # for minor patches.
 supabase>=2.10,<3
 
+# Cache (POL-05). redis.asyncio handles both `redis://` (dev docker)
+# and `rediss://` (prod TLS — Upstash). API surface (Redis.from_url,
+# get, setex, decode_responses) is stable from 5.x through 7.x.
+redis>=5,<8
+
 # Auth
 python-jose[cryptography]==3.3.0
 bcrypt==4.2.1

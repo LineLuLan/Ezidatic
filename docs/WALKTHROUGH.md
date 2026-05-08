@@ -259,8 +259,9 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_chat.py` | 13 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404, **SQL retry on first-attempt failure (Q5-AGENT-03)**, **both-fail surfaces both errors**, **EXPLAIN branch ships grounded profile to LLM (Q5-AGENT-04)** |
 | `tests/test_agent_quality.py` | 12 | **Q5-AGENT-01** ROUTER_PROMPT few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets. **Q5-AGENT-04** `build_grounded_context` carries real stats, prioritises keyword-matched columns, handles empty profile, truncates to budget |
 | `tests/test_storage.py` | 6 | **POL-03** `get_storage()` dispatch (local default, supabase via patched `create_client`, unknown backend raises), `SupabaseStorage` requires creds, `LocalStorage.upload_local` is a no-op, round-trip read/write |
+| `tests/test_llm_cache.py` | 5 | **POL-05** invoke cache hit short-circuits providers + sets `provider_used="<orig> (cached)"`, miss persists payload, kill-switch bypasses Redis, stream hit emits single chunk, stream miss caches full text after generator exhausts. Uses `fakeredis.aioredis`. |
 
-Total: **77** as of POL-03 BE wave (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE → 68 after Q5-EDA-02 BE → 71 after Q5-ML-05 BE → 77 after POL-03 storage tests).
+Total: **82** as of POL-05 BE wave (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE → 68 after Q5-EDA-02 BE → 71 after Q5-ML-05 BE → 77 after POL-03 storage tests → 82 after POL-05 cache tests).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
