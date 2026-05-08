@@ -5,6 +5,104 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 29: POL-01 Husky + lint-staged (Polish backlog #1)
+
+- **Branch**: `develop` — 2 cross-cutting commits on top of Session 28's
+  merge tip (`24d9210`):
+  1. `951a4a0` — `chore(repo): add Husky pre-commit + lint-staged for
+     prettier/ruff/black (POL-01)`.
+  2. `c673367` — `docs(tracking): POL-01 done + POL-08 done (status
+     flips)`.
+- **Done — POL-01** (status flipped pending → done; commits live on
+  develop because root-level configs are cross-cutting per
+  `CLAUDE.md`):
+  - **NEW root files**:
+    - `package.json`: monorepo root, declares `husky 9.1.7 +
+      lint-staged 15.2.10 + prettier 3.4.2 + prettier-plugin-tailwindcss
+      0.6.9`. `prepare: "husky"` runs Husky's hook installer on every
+      `pnpm install`. lint-staged config inlined under the `lint-staged`
+      key — `frontend/**/*.{ts,tsx,js,jsx,json,md,css}` → `prettier
+      --write`; `backend/**/*.py` → `ruff check --fix` then `black`.
+    - `pnpm-workspace.yaml`: declares `packages: ["frontend"]` so the
+      root install scope stops at `frontend/` and never touches
+      `backend/` (which is Python only).
+    - `.husky/pre-commit` (mode 100755): one-liner `pnpm exec
+      lint-staged`. Husky 9 wires `core.hooksPath = .husky/_` and
+      generates the `.husky/_/*` shim files on `pnpm install`. The
+      auto-generated `.husky/_/.gitignore` carries `*` so only
+      `pre-commit` itself is tracked.
+    - `.gitattributes`: forces LF on `.husky/*` + `*.sh` so Windows
+      `core.autocrlf=true` doesn't sneak CRLF into shell scripts that
+      Linux/macOS CI runners need to source. Husky shim is `#!/usr/bin/env
+      sh` — CRLF would brick it.
+  - **MODIFIED**:
+    - `docs/WALKTHROUGH.md`:
+      - §0 prerequisites table: `pnpm` row reworded to mention the
+        Husky monorepo-root role.
+      - §1: new "Then install the monorepo root dev dependencies" step
+        with `pnpm install` at the repo root and an explainer of the
+        `prepare` → `core.hooksPath` wiring.
+      - §8 errors table: 2 new rows — `ruff/black: command not found`
+        (cause: backend venv not active), `husky - command not found`
+        (cause: root install missing).
+      - §9 cheatsheet: prepended `pnpm install` at repo root + clarified
+        the git-workflow row notes the auto-format hook.
+      - **NEW §10**: full pre-commit behavior table covering match
+        patterns, the explicit ESLint exclusion (Session 26 noted
+        `eslint-config-next 14.2.18` peer-conflicts with eslint v9 →
+        wiring it now would block commits), the venv-on-PATH
+        requirement for backend commits, and the `--no-verify` ban.
+      - Old §10 renumbered to §11.
+- **Smoke test**: created throwaway `frontend/lib/_husky_smoke.ts`
+  with bad spacing (`export const   x =1;export   const y=2;`), ran
+  `git commit -m "test: husky smoke"`. lint-staged 15.2.10 fired on
+  the FE pattern, ran `prettier --write`, re-staged the formatted
+  result, commit landed with the file at `export const x = 1;\nexport
+  const y = 2;`. Then `git reset HEAD~1` + `rm` to drop the throwaway
+  before the docs commits. **Hook works end-to-end**.
+- **Backend smoke**: not attempted on this machine — no
+  `backend/.venv/` is created here, so `ruff` + `black` aren't on
+  PATH. WALKTHROUGH §8 row covers this exact failure mode for future
+  contributors. The hook design is venv-active-required by intent.
+- **POL-08 status fix** (rolled into the same TRACKING commit since
+  it's a 1-line correction): commit `658aa99` (SQLite-portable
+  migrations) actually merged into `develop` long ago via `d36f7a4`
+  (Sprint 3 BE merge). The TRACKING row was stale at `in_review`.
+  Flipped to `done (658aa99)` — the original SHA stays as the
+  authoritative reference.
+- **Tests at session end**: not run (no application code touched).
+  Pre-Session 28 baseline was `pytest -q` 71/71 + `pnpm build` 9
+  routes, last verified Session 27/26 respectively. Hook smoke test
+  above is the verification for this session.
+- **State**: working tree on `develop` clean after these 2 commits.
+  Local develop is **2 commits ahead of origin/develop**; user should
+  push (or I will, after this docs commit lands).
+- **Next session**: POL-02 (GitHub Actions CI) per the user's
+  "Polish backlog top-down" preference. Workflow design: matrix on
+  Python 3.11 + Node 20, run `pytest -q` (BE) + `pnpm typecheck` +
+  `pnpm build` (FE) on push to `backend`/`frontend`/`develop` and on
+  PR into `develop`/`main`. ESLint can be revisited there once
+  `eslint-config-next` is bumped to a v9-compatible release (or the
+  workflow pins the legacy eslint version).
+- **Blockers**: None.
+- **Notes**:
+  - **Why root, not frontend**: lint-staged dispatches from the dir
+    where its config lives. With config at the root, both BE and FE
+    file paths resolve as-staged (`frontend/...`, `backend/...`)
+    without any `cd ..` gymnastics. Side-effect: `~50MB` root
+    `node_modules/` (already gitignored).
+  - **Why prettier installed twice** (root + `frontend/node_modules/`):
+    pinned to identical 3.4.2 + plugin 0.6.9 so the binary on root
+    PATH formats with the same Tailwind class-sorting rules as
+    `pnpm format` inside `frontend/`. Drift would be a footgun.
+  - **Why no commitlint**: TRACKING POL-01 scope is "Husky +
+    lint-staged" only. Commit-message linting is a separate decision
+    — the user is already disciplined with Conventional Commits per
+    RULES §3, and adding it would force history-rewrite on stray
+    commits without semantic value here.
+
+---
+
 ## 2026-05-08 — Session 28: Sprint 5 P2 cross-side merge — Q5 backlog drained (12/12)
 
 - **Branch**: `develop` — merged `backend` (`4e79bb0`) and `frontend`
