@@ -20,7 +20,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
 | `develop` | (Sprint 5 P1 ML merge) | Integration. Sprint 4 + Q5 P0 + all Q5-AGENT/EDA + Q5-ML-03/04 merged. |
-| `backend` | `818d6e6` | Sprint 5 P2 EDA boxplot BE (Q5-EDA-02 BE half) — pushed. |
+| `backend` | `55cb219` | Sprint 5 P2 ML tuning BE (Q5-ML-05) — pushed. |
 | `frontend` | `e9614a2` | Sprint 5 P1 ML FE (Q5-ML-03/04) — merged into develop. |
 
 > Update the latest-commit cells with the short SHA after each push.
@@ -123,7 +123,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Q5-ML-02 | AutoML | BE | Auto-encode categorical features (drop only as last resort) | P0 | done (`d732e09`) |
 | Q5-ML-03 | AutoML | BE+FE | 5-fold CV reporting (cv_mean, cv_std) | P1 | done (BE: `881541f`, FE: `e9614a2`) |
 | Q5-ML-04 | AutoML | BE+FE | Class-imbalance handling + metric selection (F1/AUC) | P1 | done (BE: `881541f`, FE: `e9614a2`) |
-| Q5-ML-05 | AutoML | BE | Lightweight hyperparameter tuning (randomized search) | P2 | in_review (commit hash pending) |
+| Q5-ML-05 | AutoML | BE | Lightweight hyperparameter tuning (randomized search) | P2 | in_review (`55cb219`) |
 
 ---
 
