@@ -5,6 +5,39 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 28: Sprint 5 P2 cross-side merge — Q5 backlog drained (12/12)
+
+- **Branch**: `develop` — merged `backend` (`4e79bb0`) and `frontend`
+  (`f9dbbe6`) via `--no-ff` merges. **All 12 Q5 items now `done`** —
+  Sprint 5 quality backlog fully shipped.
+- **Done**:
+  - `backend` → `develop` merge clean (no conflicts) — brings in
+    Q5-EDA-02 BE (`818d6e6`) and Q5-ML-05 (`55cb219`).
+  - `frontend` → `develop` merge — conflicts on `docs/HANDOFF.md`
+    and `docs/TRACKING.md` (both sides appended new entries / rows).
+    Resolved per RULES §4 by keeping both sets of changes.
+  - TRACKING: Q5-EDA-02 + Q5-ML-05 status `done`. Active branches
+    table refreshed (develop now reflects "Q5 backlog 12/12").
+  - This Session 28 entry added.
+- **Tests at session end**: `pytest -q` 71/71 (verified on `backend`
+  in Session 27; merge is content-only). Aggregate Q5 coverage:
+  - Q5-ML-01/02: `tests/test_ml.py` (mixed-dtype + NaN imputation).
+  - Q5-ML-03/04: `tests/test_ml.py` (CV reporting + metric/imbalance).
+  - Q5-ML-05: `tests/test_ml.py` (3 new — best_params surface,
+    default omission, tune ≥ baseline on 2/3 estimators).
+  - Q5-AGENT-01/02/04: `tests/test_agent_quality.py` (12 cases).
+  - Q5-AGENT-03/04: `tests/test_chat.py` (3 chat cases).
+  - Q5-EDA-01/03: `tests/test_eda.py`.
+  - Q5-EDA-02: `tests/test_eda.py` (boxplot for skewed numeric).
+- **State**: working tree on `develop` clean after this commit + push.
+  Next: propagate `develop` → both side branches per
+  `feedback_docs_on_every_branch.md`.
+- **Next session**: Sprint 5 is **fully drained**. Pick from the
+  Polish backlog (POL-01..07) or POL-08 (already in_review) — CI,
+  deploy, dark mode, final report. No more Q5 follow-ups.
+
+---
+
 ## 2026-05-08 — Session 27: Sprint 5 P2 ML tuning BE (Q5-ML-05) — Q5 backlog drained
 
 - **Branch**: `backend` — 1 commit on top of `50e65cc` (Session 26
@@ -178,6 +211,63 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
   - **No agent tool extension**. `plot_chart` tool's
     `ChartTypeArg` Literal stays at histogram/bar/scatter/heatmap
     — boxplot is auto-emit-only per the M_QUALITY scope.
+
+---
+
+## 2026-05-08 — Session 26: Sprint 5 P2 EDA boxplot FE (Q5-EDA-02 FE half)
+
+- **Branch**: `frontend` — 1 commit on top of `e9614a2` (Session 25
+  FE tip). Shipped immediately after the BE half (Session 26 BE
+  commit `818d6e6` on `backend`).
+- **Done — Q5-EDA-02 FE**:
+  - `frontend/lib/types.ts`: `ChartType` Literal extended with
+    `"boxplot"` (mirrors the BE Pydantic literal, same change as
+    the BE commit's shared-type ride-along — required here too so
+    the FE branch's working tree typechecks before develop merges
+    bring in the BE diff).
+  - `frontend/components/charts/adapters/recharts.tsx`: new
+    `BoxplotRow` interface narrowing the shape from the BE
+    helper. New `renderBoxplot(spec)` function — single horizontal
+    SVG with `viewBox="0 0 1000 140"`, `preserveAspectRatio="none"`,
+    linear scale `(v - min)/(max - min) * 1000` mapped onto the
+    1000-unit width. Renders: whisker line + caps, IQR rectangle
+    (primary fill at 18% opacity, primary stroke), median tick
+    (stroke-width 2), outlier circles (`hsl(var(--destructive))`
+    at 70% opacity). Strokes use `vector-effect="non-scaling-stroke"`
+    so the visual stays crisp under the stretchy preserveAspectRatio.
+    Caption beneath shows column / n / skew / quartiles /
+    "shown/total" outliers — read from `spec.metadata`.
+  - Dispatch added in the existing `renderRecharts` switch chain
+    immediately before the TODO fallback.
+- **Tests**: `pnpm typecheck` ✅, `pnpm build` ✅ (all 9 routes
+  build clean, +0 kB on /eda/[id] ChartRenderer split). `pnpm lint`
+  fails at the env level only — eslint v9 surfaces options
+  Next.js's bundled config still passes (`useEslintrc`,
+  `extensions`, `resolvePluginsRelativeTo`, `rulePaths`,
+  `reportUnusedDisableDirectives`). Pre-existing env issue
+  (Session 25 also flagged FE node_modules instability) — not
+  caused by these changes. Per RULES §5 the FE gate is `pnpm
+  build`, which is green.
+- **State**: working tree on `frontend` clean after this commit.
+  After push, the user can merge `backend` (Q5-EDA-02 BE) +
+  `frontend` (Q5-EDA-02 FE) into `develop` to flip Q5-EDA-02 to
+  `done` and propagate develop → side branches.
+- **Next**: switch back to `backend` for Q5-ML-05 (BE-only
+  hyperparam tuning behind `TrainRequest.tune: bool = false`).
+  After that lands and is merged, Sprint 5 backlog is fully
+  drained (12/12).
+- **Blockers**: None.
+- **Notes**:
+  - **types.ts duplicated across BE + FE commits**: the BE commit
+    (`818d6e6`) included `frontend/lib/types.ts` per the RULES §3
+    shared-type exception. The FE commit makes the same change
+    again on its own branch so the FE renderer typechecks before
+    develop integration. When develop merges both branches, git's
+    three-way merge resolves the identical addition trivially —
+    standard "both sides made the same change" → no conflict.
+  - **No Vitest case for renderBoxplot** because Vitest isn't
+    wired yet (per RULES §5 it's a Sprint 2 commitment that's
+    been deferred). Manual smoke is the test.
 
 ---
 
