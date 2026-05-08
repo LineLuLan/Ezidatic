@@ -124,6 +124,20 @@ HIGH_CORR_CSV = (
 )
 
 
+# Heavily right-skewed: cluster of small values + a long tail. Polars skew
+# on this fixture is well above 1.0 so the picker auto-emits a boxplot.
+SKEWED_CSV = (
+    "amount\n"
+    + "\n".join(
+        str(v) for v in (
+            1, 2, 2, 3, 3, 3, 4, 4, 4, 4,
+            5, 5, 5, 5, 5, 5, 6, 7, 8, 50, 100, 250,
+        )
+    )
+    + "\n"
+)
+
+
 @pytest.mark.asyncio
 async def test_profile_includes_is_datetime_flag(
     auth_client: AsyncClient, isolated_storage: Path
@@ -195,6 +209,38 @@ async def test_charts_emit_scatter_for_top_correlated_pairs(
         for s in scatters
     }
     assert ("x", "y") in pair_labels
+
+
+@pytest.mark.asyncio
+async def test_charts_emit_boxplot_for_skewed_numeric(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-EDA-02: a heavily right-skewed numeric column emits a boxplot."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={"file": ("skew.csv", SKEWED_CSV.encode("utf-8"), "text/csv")},
+    )
+    dataset_id = upload.json()["id"]
+
+    response = await auth_client.get(f"/api/v1/eda/{dataset_id}/charts")
+    assert response.status_code == 200, response.text
+    specs = response.json()
+    box_specs = [s for s in specs if s["type"] == "boxplot"]
+    assert len(box_specs) >= 1
+    box = box_specs[0]
+    ChartSpec.model_validate(box)
+
+    row = box["series"][0]["data"][0]
+    assert row["q1"] <= row["median"] <= row["q3"]
+    assert row["whisker_low"] <= row["q1"]
+    assert row["whisker_high"] >= row["q3"]
+    assert isinstance(row["outliers"], list)
+    # The 50/100/250 tail should land outside the upper Tukey fence.
+    assert any(v >= 50 for v in row["outliers"])
+    assert box["metadata"]["outlier_count_total"] >= 2
+    assert box["metadata"]["skew"] is not None
+    # Histogram still co-emits — boxplot doesn't replace it.
+    assert any(s["type"] == "histogram" for s in specs)
 
 
 @pytest.mark.asyncio

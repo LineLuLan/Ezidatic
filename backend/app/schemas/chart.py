@@ -4,7 +4,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-ChartType = Literal["bar", "line", "scatter", "histogram", "heatmap", "pie"]
+ChartType = Literal[
+    "bar", "line", "scatter", "histogram", "heatmap", "pie", "boxplot"
+]
 
 
 class AxisSpec(BaseModel):

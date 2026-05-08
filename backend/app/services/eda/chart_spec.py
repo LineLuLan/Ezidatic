@@ -9,11 +9,32 @@ import polars as pl
 from app.schemas.chart import AxisSpec, ChartSpec, SeriesSpec
 
 
+SKEW_AUTOEMIT_THRESHOLD = 1.0  # Q5-EDA-02: emit boxplot when |skew| > this.
+BOXPLOT_OUTLIER_CAP = 50  # Q5-EDA-02: payload bound for outlier rendering.
+
+
 def _clean(v: Any) -> Any:
     """Replace NaN/Inf with None so Pydantic + JSON serialization don't choke."""
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
         return None
     return v
+
+
+def compute_skew(series: pl.Series) -> float | None:
+    """Polars skew with hard guard rails. Returns None when undefined."""
+    non_null = series.drop_nulls()
+    if non_null.len() < 3:
+        return None
+    try:
+        s = non_null.skew()
+    except Exception:  # noqa: BLE001
+        return None
+    if s is None:
+        return None
+    f = float(s)
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
 
 
 def histogram_spec(df: pl.DataFrame, column: str, bins: int = 30) -> ChartSpec:
@@ -142,6 +163,71 @@ def line_spec(
         y_axis=AxisSpec(key="count", label="count", type="numeric"),
         series=[SeriesSpec(name=datetime_col, data=data)],
         metadata={"period": chosen, "buckets": len(data)},
+    )
+
+
+def boxplot_spec(df: pl.DataFrame, column: str) -> ChartSpec:
+    """Tukey boxplot summary for a numeric column. Q5-EDA-02.
+
+    Returned series has one row carrying min, q1, median, q3, max,
+    Tukey whisker fences (clamped to actual min/max), a sample of
+    outliers (capped at ``BOXPLOT_OUTLIER_CAP`` for payload size),
+    and skew. Auto-emitted by the picker for columns with
+    ``|skew| > SKEW_AUTOEMIT_THRESHOLD``.
+    """
+    non_null = df[column].drop_nulls()
+    n = non_null.len()
+    if n < 4:
+        raise ValueError("boxplot requires at least 4 non-null values")
+
+    q1 = float(non_null.quantile(0.25))
+    median = float(non_null.quantile(0.5))
+    q3 = float(non_null.quantile(0.75))
+    iqr = q3 - q1
+    lo_fence = q1 - 1.5 * iqr
+    hi_fence = q3 + 1.5 * iqr
+    col_min = float(non_null.min())
+    col_max = float(non_null.max())
+    whisker_low = max(col_min, lo_fence)
+    whisker_high = min(col_max, hi_fence)
+
+    np_vals = non_null.to_numpy()
+    outlier_mask = (np_vals < lo_fence) | (np_vals > hi_fence)
+    all_outliers = np_vals[outlier_mask]
+    total_outliers = int(all_outliers.size)
+    if total_outliers > BOXPLOT_OUTLIER_CAP:
+        rng = np.random.default_rng(42)
+        sampled = rng.choice(all_outliers, size=BOXPLOT_OUTLIER_CAP, replace=False)
+    else:
+        sampled = all_outliers
+
+    skew_val = compute_skew(non_null)
+
+    data_row = {
+        "column": column,
+        "min": _clean(col_min),
+        "q1": _clean(q1),
+        "median": _clean(median),
+        "q3": _clean(q3),
+        "whisker_low": _clean(whisker_low),
+        "whisker_high": _clean(whisker_high),
+        "max": _clean(col_max),
+        "outliers": [_clean(float(v)) for v in sampled],
+        "skew": _clean(skew_val) if skew_val is not None else None,
+    }
+
+    return ChartSpec(
+        type="boxplot",
+        title=f"Boxplot of {column}",
+        x_axis=AxisSpec(key="column", label=column, type="category"),
+        y_axis=AxisSpec(key="value", label=column, type="numeric"),
+        series=[SeriesSpec(name=column, data=[data_row])],
+        metadata={
+            "n": int(n),
+            "outlier_count_total": total_outliers,
+            "outlier_count_shown": int(sampled.size),
+            "skew": _clean(skew_val) if skew_val is not None else None,
+        },
     )
 
 

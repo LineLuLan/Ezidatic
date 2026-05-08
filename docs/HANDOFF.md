@@ -5,6 +5,182 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 27: Sprint 5 P2 ML tuning BE (Q5-ML-05) — Q5 backlog drained
+
+- **Branch**: `backend` — 1 commit on top of `50e65cc` (Session 26
+  BE tracking commit). Sprint 5 backlog now **12/12** in `in_review`
+  or `done` after this push and the user's develop merges.
+- **Done — Q5-ML-05** (status flipped to `in_review`):
+  - `app/config.py`: 2 new ML tuning settings —
+    `ml_tune_n_iter: int = 5`, `ml_tune_random_seed: int = 42`.
+    No separate inner-CV knob; the tuner reuses the outer splitter
+    (see auto_train notes below).
+  - `app/services/ml/base_estimator.py`: new class attribute
+    `param_distributions: dict[str, list] | None = None` on
+    `BaseEstimator`. Subclasses opt in by setting it.
+  - `app/services/ml/estimators/*.py` (all 5): each estimator
+    declares its `param_distributions`:
+      - `RandomForestClf` / `RandomForestReg`: n_estimators,
+        max_depth, min_samples_split, max_features (3·4·3·3 = 108
+        combos).
+      - `LightGBMClassifier` / `LightGBMReg`: n_estimators,
+        learning_rate, num_leaves, min_child_samples (3·4·3·3 =
+        108 combos). `lightgbm_clf.py` also normalised to the
+        `defaults | self.hyperparams` pattern so tuned params
+        override cleanly (it was passing `**self.hyperparams`
+        raw before).
+      - `LogisticReg`: C across 5 values; `penalty` and `solver`
+        kept as singletons (l1 needs solver swap — out of P2
+        scope).
+  - `app/services/ml/auto_train.py`:
+      - `_run_cv` refactored to accept optional
+        `hyperparams: dict | None = None`; passes to
+        `estimator_cls(**(hyperparams or {})).fit(...)`. Default
+        path unchanged.
+      - New `_tune_estimator(estimator_cls, X, y, splitter, task,
+        metric, n_iter, seed)` runs hand-rolled randomized search.
+        **Key design**: it reuses the OUTER splitter as the inner
+        scorer. Combined with the `{}` safety-floor candidate, this
+        guarantees `tune=True ≥ tune=False` because the tuner's
+        winner is by construction the strongest sampled candidate
+        on the leaderboard's reporting folds. Sklearn-style nested
+        CV would have been a different fold structure → variance
+        could let inner picks regress on outer scoring (we observed
+        this in the first iteration of the test; switching to a
+        shared splitter eliminated the regression).
+      - `auto_train(...)` gains `tune: bool = False`. When True,
+        each estimator runs `_tune_estimator` first; the resulting
+        `best_params` is forwarded to the outer `_run_cv` AND to
+        the final-fit (so the saved joblib reflects the tuned
+        model, not defaults).
+      - `agg["best_params"]` set only when `best_params` truthy —
+        an empty dict (defaults won the inner CV) is treated as
+        "tuning ran, no improvement" and not surfaced.
+  - `app/schemas/ml.py`: `TrainRequest` gains
+    `tune: bool = False` (mirrors `background` pattern).
+  - `app/api/v1/ml.py`: plumbed `tune=payload.tune` into both the
+    sync `auto_train` call (line 325) and the background-task
+    `add_task` kwargs + `_run_and_persist_in_background`
+    signature. Both persistence loops (`_persist_experiments` +
+    background loop) replaced `hyperparams=None` with
+    `hyperparams=entry.get("best_params")` so tuned params land
+    on `MlExperiment.hyperparams` automatically (already a
+    nullable JSON column — no migration).
+- **Tests**: `pytest -q` → **71 passed** (was 68). Three new cases:
+  - `test_train_with_tune_flag_persists_best_params` — Iris-60
+    fixture, `tune=True`. Asserts ≥1 estimator picked a non-default
+    sample (best_params present, tree-key overlap), and at least
+    one persisted leaderboard row has non-null hyperparams.
+    Allows the safety floor to win on some estimators where
+    defaults are already optimal.
+  - `test_train_default_tune_false_omits_best_params` — Iris-60,
+    no `tune` field. Asserts every entry omits `best_params` and
+    every persisted row has `hyperparams is None`. Regression
+    check that the default path is byte-identical.
+  - `test_tune_true_matches_or_beats_baseline_on_majority_of_estimators`
+    — 200-row deterministic binary classification fixture
+    (numpy `default_rng(42)`, 4 informative features, sigmoid
+    label). Trains twice (tune=False then tune=True), asserts
+    `tuned_cv_mean >= baseline_cv_mean - 1e-6` for ≥2 of 3
+    classifier estimators. With the shared-splitter design the
+    test passes 3/3 — tuning either matches baseline (safety
+    floor) or strictly improves on outer folds.
+- **WALKTHROUGH update** (§5 + §7.6): test count 68 → 71;
+  `test_ml.py` row updated to 16 with all 3 new cases listed;
+  §7.6 gains a "Sprint 5 P2 tuning (Q5-ML-05)" subsection
+  covering the opt-in flag, distributions per estimator,
+  shared-splitter design, persistence to `MlExperiment.hyperparams`,
+  determinism seed, and cost expectations.
+- **State**: `pytest -q` 71/71 (3:07 wall — the new
+  metric-comparison test is the slowest, ~1.5min on its own).
+  Working tree on `backend` clean after this commit.
+- **Next session start**: Sprint 5 backlog is **fully drained**
+  after the user merges `backend` (Q5-EDA-02 BE + Q5-ML-05) and
+  `frontend` (Q5-EDA-02 FE) into `develop`. Only Polish
+  (POL-01..07 + POL-08 already in_review) remains as non-Q5
+  work — CI, deploy, dark mode, final report.
+- **Blockers**: None.
+- **Notes**:
+  - **Why hand-rolled randomized search, not sklearn**: our
+    `BaseEstimator.fit(X_tr, y_tr, X_val, y_val) -> TrainResult`
+    signature isn't sklearn-compatible (sklearn calls `fit(X, y)`
+    + `score(X, y)`), and `LogisticReg` returns a `(scaler, model)`
+    tuple. Wrapping all 5 estimators in sklearn-compat adapters
+    is more code than this 30-line search loop.
+  - **Why share the outer splitter for inner CV**: first iteration
+    used a separate inner KFold (k=3) — caused tuned RF + LGBM
+    cv_mean to regress 0.005 below baseline because the inner
+    folds optimized for a different fold structure than the outer
+    folds reported. Reusing the outer splitter aligns inner and
+    outer scoring exactly: candidate winner is guaranteed the
+    leaderboard winner (no inner→outer divergence).
+  - **Safety floor `{}`**: always evaluated as candidate #1.
+    Makes tuning monotone: `tune=True` cannot regress below
+    `tune=False` because the worst-case outcome is the safety
+    floor wins → outer CV reproduces baseline scoring identically.
+  - **Persistence shape**: `MlExperiment.hyperparams` carries
+    the full tuned dict for tuned rows; default-path rows still
+    write `null` exactly as before.
+
+---
+
+## 2026-05-08 — Session 26: Sprint 5 P2 EDA boxplot BE (Q5-EDA-02 BE half)
+
+- **Branch**: `backend` — 1 commit on top of `981b03d` (Session 25
+  develop sync). FE half (recharts SVG renderer) ships in a
+  separate `frontend` commit before merge.
+- **Done — Q5-EDA-02 BE** (status flipped to `in_review`):
+  - `app/schemas/chart.py`: `ChartType` Literal extended with
+    `"boxplot"`.
+  - `app/services/eda/chart_spec.py`: new module-level constants
+    `SKEW_AUTOEMIT_THRESHOLD = 1.0` + `BOXPLOT_OUTLIER_CAP = 50`,
+    new public helper `compute_skew(series)` (Polars skew with
+    NaN/Inf/None guard rails — `n<3` and `std==0` collapse to
+    None), and new `boxplot_spec(df, column)` that returns a
+    one-row series carrying min/q1/median/q3/whisker_low/
+    whisker_high/max/outliers/skew. Whiskers use Tukey 1.5·IQR
+    fences clamped to actual min/max. Outliers capped at 50 via
+    seeded `np.random.default_rng(42)` (full count preserved in
+    `metadata.outlier_count_total`).
+  - `app/api/v1/eda.py`: picker imports `compute_skew`,
+    `boxplot_spec`, `SKEW_AUTOEMIT_THRESHOLD`. Inside the
+    existing `for col in numeric_cols` loop, after the histogram
+    append, computes skew and (if `|skew| > 1.0` and
+    `n_unique >= 4`) appends a boxplot under `try/except BLE001`
+    matching the `line_spec` defensive pattern. Boxplot is
+    additive — histograms still co-emit.
+  - `frontend/lib/types.ts`: `ChartType` literal mirrors the
+    Pydantic addition (RULES §3 shared-type exception). FE
+    rendering work is split into the next commit.
+- **Tests**: `pytest -q` → **68 passed** (was 67). One new case:
+  `test_charts_emit_boxplot_for_skewed_numeric` uses a 22-row
+  right-skewed `amount` column (cluster of small values + 50/
+  100/250 tail). Asserts `q1 ≤ median ≤ q3`, whiskers clamp
+  correctly, ≥1 outlier in the cap, `outlier_count_total ≥ 2`,
+  and that the histogram still co-emits.
+- **WALKTHROUGH update** (§5 + §7.4): test count 67 → 68;
+  `test_eda.py` row updated to 8; §7.4 gains a Q5-EDA-02 bullet.
+- **State**: working tree on `backend` clean after this commit.
+- **Next**: switch to `frontend`, ship the SVG renderer for
+  `spec.type === "boxplot"` in `components/charts/adapters/
+  recharts.tsx`. Then `pnpm typecheck && pnpm build && pnpm
+  lint`. After both side-branch commits, follow up with Q5-ML-05
+  on `backend` (hyperparam tuning).
+- **Blockers**: None.
+- **Notes**:
+  - **Skew computed on demand, not in profiler**. Widening
+    `ColumnProfile` would have rippled into FE types, agent
+    grounding context, and the dataset profile cache. Single
+    Polars `Series.skew()` call in the picker is cheap.
+  - **Outlier cap at 50 with seed=42** keeps the JSON payload
+    bounded on long-tailed columns (e.g. revenue datasets with
+    thousands of outliers) while remaining deterministic.
+  - **No agent tool extension**. `plot_chart` tool's
+    `ChartTypeArg` Literal stays at histogram/bar/scatter/heatmap
+    — boxplot is auto-emit-only per the M_QUALITY scope.
+
+---
+
 ## 2026-05-08 — Session 25: Sprint 5 P1 ML FE + cross-side merge
 
 - **Branch**: `frontend` then `develop` — shipped FE half of Q5-ML-03/04

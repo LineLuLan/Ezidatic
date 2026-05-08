@@ -3,7 +3,14 @@
  * backend/app/schemas/. When backend adds a field, update both.
  */
 
-export type ChartType = "bar" | "line" | "scatter" | "histogram" | "heatmap" | "pie";
+export type ChartType =
+  | "bar"
+  | "line"
+  | "scatter"
+  | "histogram"
+  | "heatmap"
+  | "pie"
+  | "boxplot";
 
 export interface AxisSpec {
   key: string;

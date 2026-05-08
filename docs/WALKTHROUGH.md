@@ -236,13 +236,13 @@ pytest --cov=app --cov-report=term-missing
 | `tests/test_auth.py` | 5 | Register, dup-email, login, wrong password, unknown email |
 | `tests/test_datasets.py` | 6 | Upload, format reject, auth required, list, detail, x-workspace 404 |
 | `tests/test_ingestion.py` | 2 | CSV + Excel registered; suffix dispatch |
-| `tests/test_eda.py` | 7 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404, **`is_datetime` profile flag (Q5-EDA-01)**, **line chart for date column**, **auto-scatter top |corr| pair (Q5-EDA-03)** |
+| `tests/test_eda.py` | 8 | Profile blob, auto-pick charts, NaN-clean heatmap, x-workspace 404, **`is_datetime` profile flag (Q5-EDA-01)**, **line chart for date column**, **auto-scatter top |corr| pair (Q5-EDA-03)**, **boxplot for skewed numeric (Q5-EDA-02)** |
 | `tests/test_preprocessing.py` | 5 | 3-step run + audit, log ordering across runs, unknown-step 422, empty-steps 422, registry extensibility |
-| `tests/test_ml.py` | 13 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop**, **5-fold CV reporting (Q5-ML-03)**, **metric=f1_macro re-ranks leaderboard (Q5-ML-04)**, **imbalanced fixture flags `class_balance`** |
+| `tests/test_ml.py` | 16 | Registry coverage, classification + regression train end-to-end, leaderboard persistence, missing target 422, cross-workspace 404, joblib artifact reload, **mixed-dtype auto-encoding (Q5-ML-02)**, **NaN median-imputation (Q5-ML-01)**, **high-cardinality drop**, **5-fold CV reporting (Q5-ML-03)**, **metric=f1_macro re-ranks leaderboard (Q5-ML-04)**, **imbalanced fixture flags `class_balance`**, **`tune=True` persists best_params (Q5-ML-05)**, **default `tune=False` omits best_params**, **tune ≥ baseline on ≥2/3 estimators (200-row fixture)** |
 | `tests/test_chat.py` | 13 | Provider fallback (success + all-fail), router robust JSON parsing + EXPLAIN fallback, query_dataset SQL + non-SELECT reject, session CRUD, SSE round-trip with persisted token_usage + provider_used + tool_calls, cross-workspace 404, **SQL retry on first-attempt failure (Q5-AGENT-03)**, **both-fail surfaces both errors**, **EXPLAIN branch ships grounded profile to LLM (Q5-AGENT-04)** |
 | `tests/test_agent_quality.py` | 12 | **Q5-AGENT-01** ROUTER_PROMPT few-shot examples per QueryType + preserves `{question}` placeholder. **Q5-AGENT-02** profile_column emits sample_values, sql_worker `_column_schema` renders nulls/unique/min/max/samples per line, truncates over the 1500-char budget, falls back to `(unknown)` for unprofiled datasets. **Q5-AGENT-04** `build_grounded_context` carries real stats, prioritises keyword-matched columns, handles empty profile, truncates to budget |
 
-Total: **67** as of Sprint 5 (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE).
+Total: **71** as of Sprint 5 (43 end-of-Sprint 4 → 46 → 54 → 57 → 64 → 67 after Q5-ML-03/04 BE → 68 after Q5-EDA-02 BE → 71 after Q5-ML-05 BE).
 
 > Heads-up: a few of the registry tests need optional deps installed
 > (`polars`, `lightgbm`). `requirements.txt` pins them, but if you
@@ -368,6 +368,13 @@ exist.
   unique unordered correlation pairs by `|corr|` and emits up to
   3 auto-scatters for pairs above `0.5`. Pairs with NaN
   correlation (e.g. constant columns) are skipped.
+- **Q5-EDA-02**: numeric columns with `|skew| > 1` (Polars
+  `Series.skew`) gain a `boxplot` ChartSpec alongside the
+  histogram. The single-row series carries Tukey quartiles
+  (`q1/median/q3`), whisker fences clamped to actual `min/max`,
+  and up to 50 sampled outliers (`metadata.outlier_count_total`
+  preserves the full count). Recharts has no native boxplot —
+  the FE renders inline SVG (single horizontal box).
 
 ### 7.5 Preprocessing — run + logs (Sprint 2)
 
@@ -462,6 +469,34 @@ and reports per-fold variance plus optional metric override.
   `extras.class_balance = {counts, ratio, imbalanced}`. `imbalanced`
   flips when `max_class / min_class > 1.5`. Use this on the FE to
   prompt the user toward `f1_macro` / `roc_auc` instead of accuracy.
+
+**Sprint 5 P2 tuning (Q5-ML-05)**: opt-in randomized hyperparameter
+search per estimator, gated behind `TrainRequest.tune: bool = false`.
+
+- Set `"tune": true` in the train body to enable. Default `false`
+  keeps the fast path unchanged.
+- Each estimator class declares a `param_distributions` dict
+  (RF: n_estimators / max_depth / min_samples_split / max_features;
+  LightGBM: n_estimators / learning_rate / num_leaves /
+  min_child_samples; LogReg: C). `auto_train` samples
+  `settings.ml_tune_n_iter` (default 5) combinations plus the
+  empty-dict safety floor `{}`, scores each on the SAME outer
+  splitter the leaderboard reports against, and picks the
+  highest-scoring set.
+- **Reusing the outer splitter** for inner search means the tuner's
+  pick is — by construction — the strongest sampled candidate on
+  the leaderboard's reporting folds. Combined with the `{}` safety
+  floor, `tune=True` cannot regress below `tune=False`.
+- Tuned values land in `entry.metrics.best_params` on the API
+  response and on the persisted `MlExperiment.hyperparams` column.
+  When the safety floor wins (defaults already optimal), neither
+  field is set — i.e. tuning ran but found no improvement.
+- Determinism: `settings.ml_tune_random_seed` (default 42) seeds
+  the candidate sampler.
+- Cost: with the splitter shared, each estimator runs `n_iter + 1`
+  outer-CV evaluations during tuning. On the 60-row Iris fixture
+  one estimator takes ~2s; on a 200-row fixture ~6s per estimator.
+  Flip to `background=true` for real-world data.
 
 ### 7.7 Chat — sessions + SSE messages (Sprint 4)
 

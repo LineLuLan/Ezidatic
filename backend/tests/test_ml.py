@@ -491,3 +491,176 @@ async def test_artifact_reloads_and_predicts(
     else:
         preds = loaded.predict([[5.1, 3.5, 1.4, 0.2]])
     assert len(preds) == 1
+
+
+# ----------------------------- Q5-ML-05 tuning -------------------------------
+
+# 200-row binary classification with 4 informative numeric features.
+# Deterministic via numpy seed=42 so the metric-comparison test is stable.
+def _make_tunable_csv() -> str:
+    import numpy as np
+
+    rng = np.random.default_rng(42)
+    n = 200
+    x1 = rng.normal(0, 1, n)
+    x2 = rng.normal(0, 1, n)
+    x3 = rng.normal(0, 1, n)
+    x4 = rng.normal(0, 1, n)
+    # Linear combination + sigmoid noise → binary label.
+    score = 1.5 * x1 - 0.8 * x2 + 0.6 * x3 - 0.4 * x4 + rng.normal(0, 0.5, n)
+    y = (score > 0).astype(int)
+    rows = ["x1,x2,x3,x4,target"]
+    for i in range(n):
+        rows.append(
+            f"{x1[i]:.4f},{x2[i]:.4f},{x3[i]:.4f},{x4[i]:.4f},{y[i]}"
+        )
+    return "\n".join(rows) + "\n"
+
+
+@pytest.mark.asyncio
+async def test_train_with_tune_flag_persists_best_params(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-05: tune=True surfaces best_params on leaderboard rows."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": ("iris.csv", CLASSIFICATION_CSV.encode("utf-8"), "text/csv")
+        },
+    )
+    dataset_id = upload.json()["id"]
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "species",
+            "task_type": "classification",
+            "tune": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+
+    # Tuning ran — at least one estimator picked a non-default sample
+    # (otherwise the safety-floor "{}" candidate won everything and
+    # `best_params` is omitted). Iris-60 has enough variance for ≥1
+    # estimator to land on a tuned sample.
+    tuned = [
+        e for e in body["leaderboard"]
+        if e["metrics"].get("best_params")
+    ]
+    assert tuned, body["leaderboard"]
+
+    # Whenever best_params is recorded it must be a non-empty dict
+    # whose keys come from the estimator's declared distributions.
+    tree_keys = {"n_estimators", "max_depth", "min_samples_split",
+                 "max_features", "learning_rate", "num_leaves",
+                 "min_child_samples", "C", "penalty", "solver"}
+    for e in tuned:
+        bp = e["metrics"]["best_params"]
+        assert isinstance(bp, dict) and bp, e
+        assert tree_keys & set(bp.keys()), e
+        assert e["train_time_sec"] > 0
+
+    leaderboard_rows = await auth_client.get(
+        f"/api/v1/ml/leaderboard/{dataset_id}"
+    )
+    assert leaderboard_rows.status_code == 200
+    rows = leaderboard_rows.json()
+    assert any(r["hyperparams"] for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_train_default_tune_false_omits_best_params(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-05: default path is unchanged — no best_params, no
+    persisted hyperparams."""
+    upload = await auth_client.post(
+        "/api/v1/datasets",
+        files={
+            "file": ("iris.csv", CLASSIFICATION_CSV.encode("utf-8"), "text/csv")
+        },
+    )
+    dataset_id = upload.json()["id"]
+    response = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_id,
+            "target_column": "species",
+            "task_type": "classification",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    for entry in body["leaderboard"]:
+        assert "best_params" not in entry["metrics"], entry["metrics"]
+
+    leaderboard_rows = await auth_client.get(
+        f"/api/v1/ml/leaderboard/{dataset_id}"
+    )
+    assert leaderboard_rows.status_code == 200
+    rows = leaderboard_rows.json()
+    assert all(r["hyperparams"] is None for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_tune_true_matches_or_beats_baseline_on_majority_of_estimators(
+    auth_client: AsyncClient, isolated_storage: Path
+) -> None:
+    """Q5-ML-05 acceptance criterion: tune=True yields cv_mean >= baseline
+    for at least 2 of 3 classification estimators on a 200-row fixture."""
+    csv = _make_tunable_csv()
+
+    upload_a = await auth_client.post(
+        "/api/v1/datasets",
+        files={"file": ("tune_a.csv", csv.encode("utf-8"), "text/csv")},
+    )
+    dataset_a = upload_a.json()["id"]
+    baseline = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_a,
+            "target_column": "target",
+            "task_type": "classification",
+        },
+    )
+    assert baseline.status_code == 200, baseline.text
+    base_scores = {
+        e["name"]: e["metrics"]["cv_mean"]
+        for e in baseline.json()["leaderboard"]
+    }
+
+    # Re-upload to a fresh dataset id so the train run is independent.
+    upload_b = await auth_client.post(
+        "/api/v1/datasets",
+        files={"file": ("tune_b.csv", csv.encode("utf-8"), "text/csv")},
+    )
+    dataset_b = upload_b.json()["id"]
+    tuned = await auth_client.post(
+        "/api/v1/ml/train",
+        json={
+            "dataset_id": dataset_b,
+            "target_column": "target",
+            "task_type": "classification",
+            "tune": True,
+        },
+    )
+    assert tuned.status_code == 200, tuned.text
+    tuned_scores = {
+        e["name"]: e["metrics"]["cv_mean"]
+        for e in tuned.json()["leaderboard"]
+    }
+
+    # Compare on the 3 classification estimators that exist in the registry.
+    common = set(base_scores) & set(tuned_scores)
+    assert len(common) >= 3
+    matched = [
+        name for name in common
+        # 1e-6 tolerance: ties pass without flake.
+        if tuned_scores[name] >= base_scores[name] - 1e-6
+    ]
+    assert len(matched) >= 2, {
+        "baseline": base_scores,
+        "tuned": tuned_scores,
+    }

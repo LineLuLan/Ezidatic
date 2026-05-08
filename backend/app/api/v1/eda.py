@@ -11,7 +11,10 @@ from app.core.exceptions import NotFoundError
 from app.models.dataset import Dataset
 from app.models.workspace import Workspace
 from app.services.eda.chart_spec import (
+    SKEW_AUTOEMIT_THRESHOLD,
     bar_spec,
+    boxplot_spec,
+    compute_skew,
     heatmap_spec,
     histogram_spec,
     line_spec,
@@ -82,6 +85,20 @@ async def list_charts(
         if df[col].drop_nulls().n_unique() < 2:
             continue
         specs.append(histogram_spec(df, col))
+        # Q5-EDA-02: skewed numeric → also emit a boxplot. Histogram + boxplot
+        # together gives both shape and outliers; cheap because skew is O(n).
+        skew = compute_skew(df[col])
+        if (
+            skew is not None
+            and abs(skew) > SKEW_AUTOEMIT_THRESHOLD
+            and df[col].drop_nulls().n_unique() >= 4
+        ):
+            try:
+                specs.append(boxplot_spec(df, col))
+            except Exception:  # noqa: BLE001
+                # Match line_spec's defensive pattern — one bad column
+                # mustn't 500 the whole charts response.
+                pass
 
     # Q5-EDA-01: line chart of count-over-period for every datetime column.
     for col in datetime_cols:

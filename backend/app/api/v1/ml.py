@@ -233,7 +233,9 @@ def _persist_experiments(
                 "train_time_sec": entry["train_time_sec"],
                 "feature_importance": entry.get("feature_importance"),
             },
-            hyperparams=None,
+            # Q5-ML-05: persist tuned hyperparams when present;
+            # default-path entries write None unchanged.
+            hyperparams=entry.get("best_params"),
             artifact_path=(
                 str(artifact_path)
                 if artifact_path is not None and entry["name"] == best_name
@@ -308,6 +310,7 @@ async def train(
             target_column=payload.target_column,
             task_type=payload.task_type,
             metric=payload.metric,
+            tune=payload.tune,
             X=X,
             y=y,
             extras=extras,
@@ -322,7 +325,10 @@ async def train(
             extras={**extras, "status": "queued"},
         )
 
-    leaderboard = auto_train(X, y, task=payload.task_type, metric=payload.metric)
+    leaderboard = auto_train(
+        X, y, task=payload.task_type,
+        metric=payload.metric, tune=payload.tune,
+    )
     if not leaderboard:
         raise ValidationError(
             "All estimators failed to fit. Check feature dtypes + target.",
@@ -376,6 +382,7 @@ async def _run_and_persist_in_background(
     target_column: str,
     task_type: str,
     metric: str | None,
+    tune: bool,
     X: Any,
     y: Any,
     extras: dict[str, Any],
@@ -386,7 +393,9 @@ async def _run_and_persist_in_background(
     from app.core.database import get_sessionmaker
 
     try:
-        leaderboard_rows = auto_train(X, y, task=task_type, metric=metric)
+        leaderboard_rows = auto_train(
+            X, y, task=task_type, metric=metric, tune=tune,
+        )
         if not leaderboard_rows:
             log.warning("Background train: all estimators failed for %s", dataset_id)
             return
@@ -413,7 +422,8 @@ async def _run_and_persist_in_background(
                             "train_time_sec": entry["train_time_sec"],
                             "feature_importance": entry.get("feature_importance"),
                         },
-                        hyperparams=None,
+                        # Q5-ML-05: persist tuned hyperparams when present.
+                        hyperparams=entry.get("best_params"),
                         artifact_path=(
                             str(artifact_path)
                             if artifact_path is not None and entry["name"] == best["name"]

@@ -14,6 +14,14 @@ from app.services.ml.base_estimator import BaseEstimator, ModelRegistry, TrainRe
 class RandomForestReg(BaseEstimator):
     name = "random_forest_regressor"
     task = "regression"
+    # Q5-ML-05: randomized-search candidates (same as the classifier
+    # — RF tree-knob space is identical for regression).
+    param_distributions = {
+        "n_estimators": [100, 200, 400],
+        "max_depth": [None, 8, 16, 32],
+        "min_samples_split": [2, 5, 10],
+        "max_features": ["sqrt", "log2", None],
+    }
 
     def fit(self, X_train: Any, y_train: Any, X_val: Any, y_val: Any) -> TrainResult:
         t0 = time.time()
