@@ -5,6 +5,63 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 26: Sprint 5 P2 EDA boxplot FE (Q5-EDA-02 FE half)
+
+- **Branch**: `frontend` — 1 commit on top of `e9614a2` (Session 25
+  FE tip). Shipped immediately after the BE half (Session 26 BE
+  commit `818d6e6` on `backend`).
+- **Done — Q5-EDA-02 FE**:
+  - `frontend/lib/types.ts`: `ChartType` Literal extended with
+    `"boxplot"` (mirrors the BE Pydantic literal, same change as
+    the BE commit's shared-type ride-along — required here too so
+    the FE branch's working tree typechecks before develop merges
+    bring in the BE diff).
+  - `frontend/components/charts/adapters/recharts.tsx`: new
+    `BoxplotRow` interface narrowing the shape from the BE
+    helper. New `renderBoxplot(spec)` function — single horizontal
+    SVG with `viewBox="0 0 1000 140"`, `preserveAspectRatio="none"`,
+    linear scale `(v - min)/(max - min) * 1000` mapped onto the
+    1000-unit width. Renders: whisker line + caps, IQR rectangle
+    (primary fill at 18% opacity, primary stroke), median tick
+    (stroke-width 2), outlier circles (`hsl(var(--destructive))`
+    at 70% opacity). Strokes use `vector-effect="non-scaling-stroke"`
+    so the visual stays crisp under the stretchy preserveAspectRatio.
+    Caption beneath shows column / n / skew / quartiles /
+    "shown/total" outliers — read from `spec.metadata`.
+  - Dispatch added in the existing `renderRecharts` switch chain
+    immediately before the TODO fallback.
+- **Tests**: `pnpm typecheck` ✅, `pnpm build` ✅ (all 9 routes
+  build clean, +0 kB on /eda/[id] ChartRenderer split). `pnpm lint`
+  fails at the env level only — eslint v9 surfaces options
+  Next.js's bundled config still passes (`useEslintrc`,
+  `extensions`, `resolvePluginsRelativeTo`, `rulePaths`,
+  `reportUnusedDisableDirectives`). Pre-existing env issue
+  (Session 25 also flagged FE node_modules instability) — not
+  caused by these changes. Per RULES §5 the FE gate is `pnpm
+  build`, which is green.
+- **State**: working tree on `frontend` clean after this commit.
+  After push, the user can merge `backend` (Q5-EDA-02 BE) +
+  `frontend` (Q5-EDA-02 FE) into `develop` to flip Q5-EDA-02 to
+  `done` and propagate develop → side branches.
+- **Next**: switch back to `backend` for Q5-ML-05 (BE-only
+  hyperparam tuning behind `TrainRequest.tune: bool = false`).
+  After that lands and is merged, Sprint 5 backlog is fully
+  drained (12/12).
+- **Blockers**: None.
+- **Notes**:
+  - **types.ts duplicated across BE + FE commits**: the BE commit
+    (`818d6e6`) included `frontend/lib/types.ts` per the RULES §3
+    shared-type exception. The FE commit makes the same change
+    again on its own branch so the FE renderer typechecks before
+    develop integration. When develop merges both branches, git's
+    three-way merge resolves the identical addition trivially —
+    standard "both sides made the same change" → no conflict.
+  - **No Vitest case for renderBoxplot** because Vitest isn't
+    wired yet (per RULES §5 it's a Sprint 2 commitment that's
+    been deferred). Manual smoke is the test.
+
+---
+
 ## 2026-05-08 — Session 25: Sprint 5 P1 ML FE + cross-side merge
 
 - **Branch**: `frontend` then `develop` — shipped FE half of Q5-ML-03/04
