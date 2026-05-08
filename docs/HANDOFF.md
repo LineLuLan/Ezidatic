@@ -5,6 +5,63 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 26: Sprint 5 P2 EDA boxplot BE (Q5-EDA-02 BE half)
+
+- **Branch**: `backend` — 1 commit on top of `981b03d` (Session 25
+  develop sync). FE half (recharts SVG renderer) ships in a
+  separate `frontend` commit before merge.
+- **Done — Q5-EDA-02 BE** (status flipped to `in_review`):
+  - `app/schemas/chart.py`: `ChartType` Literal extended with
+    `"boxplot"`.
+  - `app/services/eda/chart_spec.py`: new module-level constants
+    `SKEW_AUTOEMIT_THRESHOLD = 1.0` + `BOXPLOT_OUTLIER_CAP = 50`,
+    new public helper `compute_skew(series)` (Polars skew with
+    NaN/Inf/None guard rails — `n<3` and `std==0` collapse to
+    None), and new `boxplot_spec(df, column)` that returns a
+    one-row series carrying min/q1/median/q3/whisker_low/
+    whisker_high/max/outliers/skew. Whiskers use Tukey 1.5·IQR
+    fences clamped to actual min/max. Outliers capped at 50 via
+    seeded `np.random.default_rng(42)` (full count preserved in
+    `metadata.outlier_count_total`).
+  - `app/api/v1/eda.py`: picker imports `compute_skew`,
+    `boxplot_spec`, `SKEW_AUTOEMIT_THRESHOLD`. Inside the
+    existing `for col in numeric_cols` loop, after the histogram
+    append, computes skew and (if `|skew| > 1.0` and
+    `n_unique >= 4`) appends a boxplot under `try/except BLE001`
+    matching the `line_spec` defensive pattern. Boxplot is
+    additive — histograms still co-emit.
+  - `frontend/lib/types.ts`: `ChartType` literal mirrors the
+    Pydantic addition (RULES §3 shared-type exception). FE
+    rendering work is split into the next commit.
+- **Tests**: `pytest -q` → **68 passed** (was 67). One new case:
+  `test_charts_emit_boxplot_for_skewed_numeric` uses a 22-row
+  right-skewed `amount` column (cluster of small values + 50/
+  100/250 tail). Asserts `q1 ≤ median ≤ q3`, whiskers clamp
+  correctly, ≥1 outlier in the cap, `outlier_count_total ≥ 2`,
+  and that the histogram still co-emits.
+- **WALKTHROUGH update** (§5 + §7.4): test count 67 → 68;
+  `test_eda.py` row updated to 8; §7.4 gains a Q5-EDA-02 bullet.
+- **State**: working tree on `backend` clean after this commit.
+- **Next**: switch to `frontend`, ship the SVG renderer for
+  `spec.type === "boxplot"` in `components/charts/adapters/
+  recharts.tsx`. Then `pnpm typecheck && pnpm build && pnpm
+  lint`. After both side-branch commits, follow up with Q5-ML-05
+  on `backend` (hyperparam tuning).
+- **Blockers**: None.
+- **Notes**:
+  - **Skew computed on demand, not in profiler**. Widening
+    `ColumnProfile` would have rippled into FE types, agent
+    grounding context, and the dataset profile cache. Single
+    Polars `Series.skew()` call in the picker is cheap.
+  - **Outlier cap at 50 with seed=42** keeps the JSON payload
+    bounded on long-tailed columns (e.g. revenue datasets with
+    thousands of outliers) while remaining deterministic.
+  - **No agent tool extension**. `plot_chart` tool's
+    `ChartTypeArg` Literal stays at histogram/bar/scatter/heatmap
+    — boxplot is auto-emit-only per the M_QUALITY scope.
+
+---
+
 ## 2026-05-08 — Session 25: Sprint 5 P1 ML FE + cross-side merge
 
 - **Branch**: `frontend` then `develop` — shipped FE half of Q5-ML-03/04
