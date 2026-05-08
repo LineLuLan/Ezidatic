@@ -19,7 +19,7 @@ Source of truth for "what's done / what's next" across both sides. Update
 | Branch | Latest commit | Notes |
 |--------|---------------|-------|
 | `main` | (initial) | Production. Only release merges land here. |
-| `develop` | (Sprint 5 P2 merge) | Integration. **Q5 backlog 12/12** — P0/P1/P2 across agent + EDA + ML all merged. |
+| `develop` | `951a4a0` | POL-01 Husky + lint-staged landed cross-cutting on develop. **Q5 backlog 12/12** — P0/P1/P2 across agent + EDA + ML all merged. |
 | `backend` | `55cb219` | Sprint 5 P2 ML tuning BE (Q5-ML-05) — merged into develop. |
 | `frontend` | `7bfd8cd` | Sprint 5 P2 EDA boxplot FE (Q5-EDA-02 FE half) — merged into develop. |
 
@@ -131,11 +131,11 @@ Source of truth for "what's done / what's next" across both sides. Update
 
 | ID | Side | Task | Status |
 |----|------|------|--------|
-| POL-01 | repo | Husky + lint-staged | pending |
+| POL-01 | repo | Husky + lint-staged | done (`951a4a0`) |
 | POL-02 | repo | GitHub Actions CI | pending |
 | POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | pending |
 | POL-04 | infra | UptimeRobot ping for Render | pending |
 | POL-05 | BE | Redis cache for LLM responses | pending |
 | POL-06 | FE | Dark mode + a11y pass | pending |
 | POL-07 | docs | Final report + slides | pending |
-| POL-08 | BE | SQLite-portable migrations (no-Docker dev path) | in_review (`658aa99`) |
+| POL-08 | BE | SQLite-portable migrations (no-Docker dev path) | done (`658aa99`) |

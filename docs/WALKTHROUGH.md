@@ -17,7 +17,7 @@ Install once on the machine:
 |------|---------|-----|
 | Python | 3.11 or 3.13 | Backend runtime |
 | Node.js | ≥ 20 | Frontend runtime |
-| pnpm | ≥ 9 | Frontend package manager |
+| pnpm | ≥ 9 | Frontend package manager + monorepo root (Husky lives here) |
 | Docker Desktop | latest | Postgres + Redis + Chroma for dev |
 | Git | latest | Version control |
 
@@ -56,6 +56,17 @@ Read these in order:
 1. `CLAUDE.md` (root) — index of what to read.
 2. `docs/HANDOFF.md` — what the previous session left behind.
 3. `docs/TRACKING.md` — what's in flight.
+
+Then install the **monorepo root** dev dependencies (Husky pre-commit
+hooks, lint-staged, prettier — see §10 for behavior):
+
+```bash
+pnpm install            # at the repo root, NOT inside frontend/
+```
+
+The `prepare` script wires `core.hooksPath` to `.husky/_` so every
+subsequent `git commit` runs the pre-commit hook. Run this once per
+clone.
 
 ---
 
@@ -564,12 +575,17 @@ multipart uploads.
 | `pnpm: command not found` | pnpm not installed | `npm i -g pnpm` |
 | 401 on every dataset call | Missing/expired bearer token | Re-run §7.1 to mint a new token (`ACCESS_TOKEN_EXPIRE_MINUTES` defaults to 1440) |
 | Charts in tests fail due to missing polars | Optional deps not installed | `pip install polars lightgbm groq` |
+| `ruff: command not found` / `black: command not found` on `git commit` | Backend venv not active in shell | Activate the venv (see §2). The pre-commit hook needs `ruff` + `black` on PATH for any commit that touches `backend/**/*.py`. |
+| `husky - command not found` after clone | Root `pnpm install` not run yet | Run `pnpm install` at the repo root (see §1). |
 
 ---
 
 ## 9. Cheatsheet
 
 ```bash
+# Repo root (one-off after clone — installs Husky pre-commit hook)
+pnpm install                           # at the repo root
+
 # Backend daily
 cd backend && source .venv/Scripts/activate
 uvicorn app.main:app --reload          # dev server
@@ -594,16 +610,48 @@ docker compose up -d                   # start postgres + redis + chroma
 docker compose down                    # stop, keep volumes
 docker compose down -v                 # stop + drop data
 
-# Git workflow (per RULES.md §3)
+# Git workflow (per RULES.md §3) — pre-commit hook runs prettier (FE) + ruff/black (BE) on staged files
 git checkout backend && git pull
 # ... implement feature, run pytest ...
-git add -A && git commit -m "feat(scope): ..."
+git add -A && git commit -m "feat(scope): ..."   # hook auto-formats; commit aborts on fix-needed
 git push origin backend
 ```
 
 ---
 
-## 10. When to update this file
+## 10. Pre-commit hook (Husky + lint-staged)
+
+The repo root owns a Husky 9 setup so every `git commit` validates the
+**staged subset** of files before recording a commit. Behavior:
+
+| Staged files match | Action |
+|--------------------|--------|
+| `frontend/**/*.{ts,tsx,js,jsx,json,md,css}` | `prettier --write` |
+| `backend/**/*.py` | `ruff check --fix`, then `black` |
+| Anything else (root configs, `docs/**`, `*.toml`, lockfiles, etc.) | Skipped — hook exits 0 |
+
+Notes:
+
+- The hook runs through `pnpm exec lint-staged` (config lives in the
+  root `package.json` under the `lint-staged` key).
+- Frontend formatting uses the binaries from the **root** `node_modules`
+  (prettier 3.4.2 + prettier-plugin-tailwindcss 0.6.9 — pinned to match
+  `frontend/.prettierrc`). Re-run `pnpm install` at the root if the
+  binary is missing.
+- Backend formatting requires `ruff` + `black` on PATH. Activate the
+  backend venv (§2) before committing `backend/**/*.py` files.
+- ESLint is intentionally **NOT** in pre-commit yet — `eslint-config-next`
+  14.2.18 has a peer-conflict with eslint v9 (Session 26 HANDOFF). Once
+  POL-02 (CI) lands, eslint will gate on push instead.
+- The hook **does NOT** auto-stage the formatter's edits — lint-staged
+  re-stages modified files for you (the standard lint-staged flow). You
+  end up with the formatted version inside the commit.
+- Bypassing the hook with `--no-verify` is forbidden (`RULES.md` §3).
+  Fix the underlying lint/format failure instead.
+
+---
+
+## 11. When to update this file
 
 Update `docs/WALKTHROUGH.md` whenever any of the following change:
 
