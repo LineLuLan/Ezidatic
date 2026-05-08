@@ -133,8 +133,8 @@ Source of truth for "what's done / what's next" across both sides. Update
 |----|------|------|--------|
 | POL-01 | repo | Husky + lint-staged | done (`951a4a0`) |
 | POL-02 | repo | GitHub Actions CI | done (`32195de`) |
-| POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | pending |
-| POL-04 | infra | UptimeRobot ping for Render | pending |
+| POL-03 | infra | Deploy Render + Vercel + Supabase + Upstash | pending — plan: `docs/modules/M_DEPLOY.md` |
+| POL-04 | infra | UptimeRobot ping for Render | pending — covered in `docs/modules/M_DEPLOY.md` §3.5 |
 | POL-05 | BE | Redis cache for LLM responses | pending |
 | POL-06 | FE | Dark mode + a11y pass | pending |
 | POL-07 | docs | Final report + slides | pending |
