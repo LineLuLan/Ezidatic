@@ -12,14 +12,9 @@ interface Props {
   isCreating: boolean;
 }
 
-export function SessionSidebar({
-  sessions,
-  activeId,
-  onNewChat,
-  isCreating,
-}: Props) {
+export function SessionSidebar({ sessions, activeId, onNewChat, isCreating }: Props) {
   return (
-    <aside className="w-64 shrink-0 space-y-3 border-r pr-4">
+    <aside className="w-64 shrink-0 space-y-3 border-r pr-4" aria-label="Chat sessions">
       <Button
         type="button"
         onClick={onNewChat}
@@ -41,9 +36,7 @@ export function SessionSidebar({
                   href={`/chat/${s.id}`}
                   className={[
                     "block truncate rounded-md px-3 py-2 text-sm",
-                    active
-                      ? "bg-accent font-medium"
-                      : "hover:bg-accent/60",
+                    active ? "bg-accent font-medium" : "hover:bg-accent/60",
                   ].join(" ")}
                 >
                   {s.title || "Untitled"}
