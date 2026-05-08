@@ -11,6 +11,11 @@ email-validator==2.2.0
 # Database
 sqlalchemy==2.0.36
 asyncpg==0.30.0
+# greenlet is a transitive dep of SQLAlchemy[asyncio]. The conditional
+# install-requires marker on sqlalchemy 2.0.36 stops triggering on
+# Python 3.13, so we pin it explicitly to keep async sessions working
+# (`ValueError: greenlet library is required`).
+greenlet>=3
 alembic==1.14.0
 
 # Auth
