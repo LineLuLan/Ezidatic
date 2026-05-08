@@ -48,6 +48,7 @@ async def run_pipeline(
     storage = get_storage()
     target = storage.path_for_preprocessed(dataset.id)
     transformed_df.write_csv(target)
+    storage.upload_local(target)
     dataset.preprocessed_storage_path = str(target)
 
     persisted_logs: list[PipelineLog] = []

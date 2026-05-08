@@ -68,9 +68,7 @@ def _impute_numeric(
     return X
 
 
-def _impute_categorical(
-    X: pd.DataFrame, cols: list[str], log_dict: dict[str, str]
-) -> pd.DataFrame:
+def _impute_categorical(X: pd.DataFrame, cols: list[str], log_dict: dict[str, str]) -> pd.DataFrame:
     """Fill NaN with mode (most frequent). Q5-ML-01."""
     for col in cols:
         series = X[col]
@@ -169,12 +167,8 @@ def _build_xy(
     X = pdf.drop(columns=[target])
 
     numeric_cols = list(X.select_dtypes(include="number").columns)
-    datetime_cols = list(
-        X.select_dtypes(include=["datetime", "datetimetz"]).columns
-    )
-    categorical_cols = [
-        c for c in X.columns if c not in numeric_cols and c not in datetime_cols
-    ]
+    datetime_cols = list(X.select_dtypes(include=["datetime", "datetimetz"]).columns)
+    categorical_cols = [c for c in X.columns if c not in numeric_cols and c not in datetime_cols]
 
     imputed_log: dict[str, str] = {}
     encoded_log: dict[str, str] = {}
@@ -185,9 +179,7 @@ def _build_xy(
 
     X = _impute_numeric(X, numeric_cols, imputation, imputed_log)
     X = _impute_categorical(X, categorical_cols, imputed_log)
-    X = _encode_categorical(
-        X, categorical_cols, encoded_log, dropped_high_card
-    )
+    X = _encode_categorical(X, categorical_cols, encoded_log, dropped_high_card)
 
     extras: dict[str, Any] = {
         "rows_used": len(pdf),
@@ -286,9 +278,7 @@ async def train(
             code="bad_task_type",
         )
 
-    source_path = Path(
-        dataset.preprocessed_storage_path or dataset.storage_path
-    )
+    source_path = Path(dataset.preprocessed_storage_path or dataset.storage_path)
     parser = ParserRegistry.get_parser(source_path)
     df = await parser.parse(source_path)
 
@@ -326,8 +316,11 @@ async def train(
         )
 
     leaderboard = auto_train(
-        X, y, task=payload.task_type,
-        metric=payload.metric, tune=payload.tune,
+        X,
+        y,
+        task=payload.task_type,
+        metric=payload.metric,
+        tune=payload.tune,
     )
     if not leaderboard:
         raise ValidationError(
@@ -336,12 +329,15 @@ async def train(
         )
 
     best = leaderboard[0]
+    storage = get_storage()
     artifact_path = _save_artifact(
-        get_storage().path_for_model(dataset.id, best["name"]),
+        storage.path_for_model(dataset.id, best["name"]),
         dataset.id,
         best["name"],
         best["model"],
     )
+    if artifact_path is not None:
+        storage.upload_local(artifact_path)
     _persist_experiments(db, dataset, payload, leaderboard, artifact_path, best["name"])
     await db.commit()
 
@@ -356,9 +352,7 @@ async def train(
     )
 
 
-@router.get(
-    "/leaderboard/{dataset_id}", response_model=list[ExperimentOut]
-)
+@router.get("/leaderboard/{dataset_id}", response_model=list[ExperimentOut])
 async def leaderboard(
     dataset_id: UUID,
     workspace: Workspace = Depends(current_workspace),
@@ -394,19 +388,26 @@ async def _run_and_persist_in_background(
 
     try:
         leaderboard_rows = auto_train(
-            X, y, task=task_type, metric=metric, tune=tune,
+            X,
+            y,
+            task=task_type,
+            metric=metric,
+            tune=tune,
         )
         if not leaderboard_rows:
             log.warning("Background train: all estimators failed for %s", dataset_id)
             return
 
         best = leaderboard_rows[0]
+        storage = get_storage()
         artifact_path = _save_artifact(
-            get_storage().path_for_model(dataset_id, best["name"]),
+            storage.path_for_model(dataset_id, best["name"]),
             dataset_id,
             best["name"],
             best["model"],
         )
+        if artifact_path is not None:
+            storage.upload_local(artifact_path)
 
         Session = get_sessionmaker()
         async with Session() as session:
