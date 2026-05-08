@@ -5,6 +5,96 @@ Reverse-chronological. Latest entry on top. Append a new entry at the
 
 ---
 
+## 2026-05-08 — Session 30: POL-02 GitHub Actions CI (Polish backlog #2)
+
+- **Branch**: `develop` — 2 cross-cutting commits on top of Session
+  29's tip (`27ffeac`):
+  1. `32195de` — `ci: add GitHub Actions workflows for backend pytest
+     + frontend build (POL-02)`.
+  2. `6ad26cb` — `docs(tracking): POL-02 done`.
+- **Done — POL-02** (status flipped pending → done; pushed straight
+  to develop because `.github/workflows/` is cross-cutting):
+  - **NEW workflows under `.github/workflows/`**:
+    - `backend.yml` — name `backend`. Triggers on `push` to
+      `backend`/`develop`/`main` and `pull_request` into
+      `develop`/`main` **only when** `backend/**` or the workflow file
+      itself changes. One job (`test`) on `ubuntu-latest`,
+      `working-directory: backend`, matrix `python-version: ["3.11"]`
+      (matrix shape leaves room to add 3.13 later). Steps: checkout
+      → `actions/setup-python@v5` with `cache: pip` keyed off
+      `backend/requirements-dev.txt` → `pip install -r
+      requirements-dev.txt` → `pytest -q`. `concurrency.group:
+      backend-${{ github.ref }}` with `cancel-in-progress: true` so
+      a fresh push supersedes a running build on the same branch.
+    - `frontend.yml` — name `frontend`. Same trigger model but
+      `paths` includes `frontend/**`, root `package.json`,
+      `pnpm-lock.yaml`, `pnpm-workspace.yaml`, plus the workflow
+      itself. One job (`build`) on `ubuntu-latest`. Steps: checkout
+      → `pnpm/action-setup@v4` (pnpm 9) → `actions/setup-node@v4`
+      with Node 20 + `cache: pnpm` → `pnpm install --frozen-lockfile`
+      at the repo root → `pnpm typecheck` + `pnpm build` (both with
+      `working-directory: frontend`). Sets `env.HUSKY: "0"` at the
+      job level so the root `prepare` script no-ops on the runner
+      (Husky 9 honors that flag). Same concurrency cancel.
+  - **MODIFIED**:
+    - `docs/WALKTHROUGH.md`:
+      - §10 Pre-commit ESLint bullet rewritten — used to say "POL-02
+        will gate ESLint on push"; corrected to note CI also defers
+        ESLint for the same `eslint-config-next` peer-conflict reason.
+        Cross-references §11.
+      - **NEW §11** "CI (GitHub Actions)" — table of workflows + when
+        they run + what they run, the explicit deferred-by-design
+        list (ESLint, Ruff/Black gate, Vitest), and the local
+        commands that mirror CI exactly. Old §11 renumbered to §12.
+- **Local CI dry-run**: ran `pnpm install --frozen-lockfile` (root)
+  + `cd frontend && pnpm typecheck && pnpm build` on this machine —
+  typecheck passes, build emits all 9 routes (same baseline Session
+  28 reported). Backend leg not exercised locally (no `.venv` here);
+  `pytest -q` was 71/71 in Session 27, no application code touched
+  since.
+- **Active-branches table**: develop bumped to `32195de`.
+- **State**: working tree on `develop` clean after the 2 commits.
+  Local develop is **2 commits ahead of origin/develop**; needs push
+  + propagate to backend/frontend per the docs-on-every-branch rule
+  (root `.github/` lands on side branches via the propagate merge,
+  same as POL-01 did).
+- **Tests at session end**: Frontend gate green locally (typecheck +
+  build). Backend gate not run locally — will be exercised by the
+  `backend.yml` workflow on the very next backend-touching push (the
+  POL-02 docs commit on develop won't trigger backend.yml because
+  `paths` excludes everything outside `backend/**`).
+- **Next session**: Polish backlog top-down → **POL-03 (Deploy)**.
+  This is the heaviest remaining item — Render (BE), Vercel (FE),
+  Supabase (Postgres + Storage + pgvector), Upstash (Redis). Likely
+  needs a dedicated planning session because it involves external
+  account setup, env-var promotion, secret management, and the
+  blueprint deviation from local FS / ChromaDB / docker-redis.
+- **Blockers**: None for POL-02 itself. POL-03 will need user
+  account credentials + decisions on free-tier vs paid.
+- **Notes**:
+  - **Why two workflows, not a single matrix**: each side has its
+    own toolchain (pip vs pnpm) and trigger paths. A combined matrix
+    would either run both legs on every change (wasteful) or need
+    `paths` filters per matrix entry (not supported by GitHub
+    Actions). Two files is the standard split.
+  - **Why no Ruff/Black in CI**: pre-commit hook (POL-01) gates
+    going-forward changes. Adding `ruff check` + `black --check`
+    to CI right now would fail on whatever legacy files predate
+    POL-01 (the hook only ran on staged paths since 951a4a0).
+    Cleanup is a separate, low-risk POL — easier to land after one
+    `ruff check . --fix` + `black .` pass on the whole tree.
+  - **Why Python 3.11, not 3.13**: WALKTHROUGH §0 says "3.11 or 3.13"
+    — 3.11 is the floor and matches `pyproject.toml`
+    `target-version = "py311"`. Adding 3.13 to the matrix later is
+    a one-line change once we have a confidence interval that
+    chromadb/lightgbm wheels are stable on 3.13 in CI.
+  - **First CI run will be slow** (~3-5 min for backend, ~1-2 min
+    for frontend) on cold caches because of chromadb + lightgbm +
+    polars wheels. Subsequent runs hit the pip + pnpm caches and
+    drop to <1 min.
+
+---
+
 ## 2026-05-08 — Session 29: POL-01 Husky + lint-staged (Polish backlog #1)
 
 - **Branch**: `develop` — 2 cross-cutting commits on top of Session 28's
